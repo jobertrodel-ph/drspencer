@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Call Workflow & EOD Generator</title>
+    <?!= include('Styles'); ?>
+</head>
+<body>
+
+    <header class="app-header">
+        <h1>Dr. Spencer's Clinic - Workflow & EOD Assistant</h1>
+        <a href="https://docs.google.com/spreadsheets/d/1Zlab6jxqAh4Ky4KuhcrpjoM9Qjzm-xrMMmh79jna86w" target="_blank" class="header-link-btn">Open Database (Sheets)</a>
+    </header>
+
+    <main class="app-container">
+        
+        <aside class="sidebar">
+            <button class="tab-btn active" data-target="outbounds">Outbound Scripts</button>
+            <button class="tab-btn" data-target="eod-generator">EOD Report Generator</button>
+        </aside>
+
+        <section class="content-area">
+
+            <div id="sticky-banner" class="sticky-banner hidden">
+                <span><strong>Patient:</strong> <span id="sticky-patient-name">None</span></span>
+                <span><strong>Action:</strong> <span id="sticky-action">None</span></span>
+            </div>
+            
+            <div id="outbounds" class="tab-content active-content">
+                <h2>Outbound Call Scripts</h2>
+
+                <div class="script-selection">
+                    <h3>Select Call Type</h3>
+                    <div class="call-type-buttons">
+                        <button class="call-btn" data-script="script-schedule">Schedule an Appointment</button>
+                        <button class="call-btn" data-script="script-change">Change Appointment Date</button>
+                        <button class="call-btn" data-script="script-followup">Follow up missing laboratory result</button>
+                    </div>
+                </div>
+
+                <div id="field-bank" class="hidden">
+                    <div class="input-group" id="grp-patient">
+                        <label>Patient Name</label>
+                        <input type="text" id="input-patient" placeholder="Patient Name">
+                    </div>
+                    <div class="input-group" id="grp-clinic" style="align-items: center; gap: 10px;">
+                        <label class="answered-label" style="font-size: 15px;">Clinic Location</label>
+                        <div class="ans-btn-group">
+                            <button class="ans-btn clinic-btn" data-val="Palm Desert">Palm Desert</button>
+                            <button class="ans-btn clinic-btn" data-val="La Quinta">La Quinta</button>
+                        </div>
+                    </div>
+                    <div class="input-group" id="grp-old-date">
+                        <label>Original Appointment Date</label>
+                        <input type="date" id="input-old-date" title="Original Date">
+                    </div>
+                    <div class="input-group" id="grp-reason">
+                        <label>Reason for Reschedule</label>
+                        <input type="text" id="input-reason" list="reason-options" placeholder="Type or select a reason...">
+                        <datalist id="reason-options">
+                            <option value="Your insurance does not approve at that facility"></option>
+                            <option value="Your insurance does not approve the payment yet"></option>
+                            <option value="Insurance will not cover"></option>
+                            <option value="Schedule is full"></option>
+                        </datalist>
+                    </div>
+                    <div class="input-group" id="grp-date">
+                        <label>Target / New Date</label>
+                        <input type="date" id="input-date" title="Target / New Date">
+                    </div>
+                    <div class="input-group" id="grp-time">
+                        <label>Target / New Time</label>
+                        <input type="time" id="input-time" title="Target / New Time">
+                    </div>
+                    <div class="input-group" id="grp-lab">
+                        <label>Laboratory Name</label>
+                        <input type="text" id="input-lab" placeholder="Laboratory Name">
+                    </div>
+                </div>
+
+                <div id="script-display-area" class="script-display-area">
+                    
+                    <div id="script-schedule" class="script-content hidden">
+                        <div class="field-slot" data-field="grp-patient"></div>
+                        
+                        <div class="call-answered-question">
+                            <span class="answered-label">Did someone answer the call?</span>
+                            <div class="ans-btn-group">
+                                <button class="ans-btn ans-yes active-ans" data-val="yes">Yes</button>
+                                <button class="ans-btn ans-no" data-val="no">No (Voicemail)</button>
+                            </div>
+                        </div>
+
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 1. ¡Hola, buenos días! Mi nombre es Joyce y le llamo del Departamento de Ortopedia del Dr. Spencer. ¿Podría hablar con <span class="ph-patient">[Nombre del paciente]</span>, por favor?</p>
+                            <p class="english">1. Hello, good morning! My name is Joyce, and I’m calling from Dr. Spencer’s Orthopedic Department. May I speak with <span class="ph-patient">[Patient’s Name]</span>, please?</p>
+                        </div>
+
+                        <div class="call-answered-question conversational-part" style="background-color: #fdf2e9; border-color: #f5cba7; margin: 15px;">
+                            <span class="answered-label">What kind of appointment?</span>
+                            <div class="ans-btn-group">
+                                <button class="ans-btn appt-type-btn" data-en="pre-op" data-es="preoperatoria">Pre-Op</button>
+                                <button class="ans-btn appt-type-btn" data-en="surgery" data-es="de cirugía">Surgery</button>
+                                <button class="ans-btn appt-type-btn" data-en="post-op" data-es="postoperatoria">Post-Op</button>
+                            </div>
+                        </div>
+
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 2. Le llamo para programar su cita <span class="ph-appt-type-es">[preoperatoria / de cirugía / postoperatoria]</span> con el Dr. Spencer. ¿Podría indicarme en cuál de nuestras clínicas prefiere su cita: Palm Desert o La Quinta?</p>
+                            <p class="english">2. I’m calling to schedule your <span class="ph-appt-type-en">[pre-op / surgery / post-op]</span> appointment with Dr. Spencer. May I ask which clinic you prefer: Palm Desert or La Quinta?</p>
+                        </div>
+                        <div class="field-slot" data-field="grp-clinic"></div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 3. ¡Muchas gracias! ¿Qué día y a qué hora le vendría mejor?</p>
+                            <p class="english">3. Thank you! May I know what day and time would work best for you?</p>
+                        </div>
+                        <div class="form-grid">
+                            <div class="field-slot" data-field="grp-date"></div>
+                            <div class="field-slot" data-field="grp-time"></div>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 4. Tenemos una cita disponible el <span class="ph-date-es">[Fecha]</span> a <span class="ph-time-es">[Hora]</span> en nuestra clínica de <span class="ph-clinic">[Palm Desert/La Quinta]</span>. ¿Le parece bien?</p>
+                            <p class="english">4. We have an available appointment on <span class="ph-date-en">[Date]</span> at <span class="ph-time-en">[Time]</span> at our <span class="ph-clinic">[Palm Desert/La Quinta]</span> clinic. Would that work for you?</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 5. ¡Perfecto! Su cita ha quedado programada para el <span class="ph-date-es">[Fecha]</span> a <span class="ph-time-es">[Hora]</span> en nuestra clínica de <span class="ph-clinic">[Palm Desert/La Quinta]</span>.</p>
+                            <p class="english">5. Perfect! Your appointment is scheduled for <span class="ph-date-en">[Date]</span> at <span class="ph-time-en">[Time]</span> at our <span class="ph-clinic">[Palm Desert/La Quinta]</span> clinic.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 6. Muchas gracias por su tiempo. Si tiene alguna pregunta o necesita hacer algún cambio, no dude en comunicarse con nuestro consultorio.</p>
+                            <p class="english">6. Thank you for your time. If you have any questions or need to make any changes, please feel free to contact our office.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 7. ¡Que tenga un excelente día!</p>
+                            <p class="english">7. Have a great day!</p>
+                        </div>
+
+                        <div class="script-block voicemail-part hidden">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> Hola, este es un mensaje para <span class="ph-patient">[Nombre del paciente]</span> del Departamento de Ortopedia del Dr. Spencer. Le llamamos para programar su cita en nuestra clínica de <span class="ph-clinic">[Palm Desert/La Quinta]</span>. Por favor, devuélvanos la llamada cuando le sea posible. ¡Gracias y que tenga un excelente día!</p>
+                            <p class="english">Hello, this is a message for <span class="ph-patient">[Patient’s Name]</span> from Dr. Spencer’s Orthopedic Department. We are calling to schedule your appointment at our <span class="ph-clinic">[Palm Desert/La Quinta]</span> clinic. Please call us back at your earliest convenience. Thank you, and have a great day!</p>
+                        </div>
+                        
+                    </div>
+
+                    <div id="script-change" class="script-content hidden">
+                        <div class="field-slot" data-field="grp-patient"></div>
+                        
+                        <div class="call-answered-question">
+                            <span class="answered-label">Did someone answer the call?</span>
+                            <div class="ans-btn-group">
+                                <button class="ans-btn ans-yes active-ans" data-val="yes">Yes</button>
+                                <button class="ans-btn ans-no" data-val="no">No (Voicemail)</button>
+                            </div>
+                        </div>
+
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 1. ¡Hola, buenos días! Mi nombre es Joyce y le llamo del Departamento de Ortopedia del Dr. Spencer. ¿Podría hablar con <span class="ph-patient">[Nombre del paciente]</span>, por favor?</p>
+                            <p class="english">1. Hello, good morning! My name is Joyce, and I’m calling from Dr. Spencer’s Orthopedic Department. May I speak with <span class="ph-patient">[Patient’s Name]</span>, please?</p>
+                        </div>
+                        <div class="field-slot" data-field="grp-old-date"></div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 2. Le llamo con respecto a su próxima cita con el Dr. Spencer, que está programada para el <span class="ph-old-date-es">[Fecha original]</span>.</p>
+                            <p class="english">2. I’m calling regarding your upcoming appointment with Dr. Spencer, currently scheduled for <span class="ph-old-date-en">[Original Date]</span>.</p>
+                        </div>
+                        <div class="field-slot" data-field="grp-reason"></div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 3. Lamentablemente, <span class="ph-reason-es">[Motivo]</span>. Le pedimos sinceras disculpas por cualquier inconveniente que esto pueda ocasionarle.</p>
+                            <p class="english">3. Unfortunately, <span class="ph-reason-en">[Reason]</span>. We sincerely apologize for any inconvenience this may cause.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 4. ¿Podría indicarme en cuál de nuestras clínicas prefiere tener su cita: Palm Desert o La Quinta?</p>
+                            <p class="english">4. May I ask which clinic you would prefer for your appointment: Palm Desert or La Quinta?</p>
+                        </div>
+                        <div class="field-slot" data-field="grp-clinic"></div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 5. ¡Muchas gracias! Revisaremos las fechas y los horarios disponibles en la clínica de su preferencia.</p>
+                            <p class="english">5. Thank you! We will check the available dates and times at your preferred location.</p>
+                        </div>
+                        <div class="form-grid">
+                            <div class="field-slot" data-field="grp-date"></div>
+                            <div class="field-slot" data-field="grp-time"></div>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 6. ¿Estaría disponible el <span class="ph-date-es">[Nueva fecha]</span> a <span class="ph-time-es">[Nueva hora]</span>? Si ese horario no le conviene, podemos buscar otra fecha y hora que se ajuste mejor a su disponibilidad.</p>
+                            <p class="english">6. Would you be available on <span class="ph-date-en">[New Date]</span> at <span class="ph-time-en">[New Time]</span>? If that doesn’t work for you, we can look for another date and time that better fits your schedule.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 7. ¡Perfecto! Su cita ha sido reprogramada para el <span class="ph-date-es">[Nueva fecha]</span> a <span class="ph-time-es">[Nueva hora]</span> en nuestra clínica de <span class="ph-clinic">[Palm Desert/La Quinta]</span>.</p>
+                            <p class="english">7. Perfect! Your appointment has been rescheduled for <span class="ph-date-en">[New Date]</span> at <span class="ph-time-en">[New Time]</span> at our <span class="ph-clinic">[Palm Desert/La Quinta]</span> clinic.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 8. Muchas gracias por su comprensión y colaboración. Si tiene alguna pregunta, no dude en comunicarse con nuestro consultorio.</p>
+                            <p class="english">8. Thank you for your understanding and cooperation. If you have any questions, please feel free to contact our office.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 9. ¡Que tenga un excelente día!</p>
+                            <p class="english">9. Have a great day!</p>
+                        </div>
+
+                        <div class="script-block voicemail-part hidden">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> Hola, este es un mensaje para <span class="ph-patient">[Nombre del paciente]</span> del Departamento de Ortopedia del Dr. Spencer. Le llamamos con respecto a su cita del <span class="ph-old-date-es">[Fecha original]</span>. Lamentablemente, <span class="ph-reason-es">[Motivo]</span>. Por favor, devuélvanos la llamada para reprogramar su cita. ¡Gracias y que tenga un excelente día!</p>
+                            <p class="english">Hello, this is a message for <span class="ph-patient">[Patient’s Name]</span> from Dr. Spencer’s Orthopedic Department. We are calling regarding your appointment on <span class="ph-old-date-en">[Original Date]</span>. Unfortunately, <span class="ph-reason-en">[Reason]</span>. Please call us back to reschedule your appointment. Thank you, and have a great day!</p>
+                        </div>
+                    </div>
+
+                    <div id="script-followup" class="script-content hidden">
+                        <div class="field-slot" data-field="grp-patient"></div>
+                        
+                        <div class="call-answered-question">
+                            <span class="answered-label">Did someone answer the call?</span>
+                            <div class="ans-btn-group">
+                                <button class="ans-btn ans-yes active-ans" data-val="yes">Yes</button>
+                                <button class="ans-btn ans-no" data-val="no">No (Voicemail)</button>
+                            </div>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 1. ¡Hola, buenos días! Mi nombre es Joyce y le llamo del Departamento de Ortopedia del Dr. Spencer. ¿Podría hablar con <span class="ph-patient">[Nombre del paciente]</span>, por favor?</p>
+                            <p class="english">1. Hello, good morning! My name is Joyce, and I’m calling from Dr. Spencer’s Orthopedic Department. May I speak with <span class="ph-patient">[Patient’s Name]</span>, please?</p>
+                        </div>
+                        <div class="field-slot" data-field="grp-lab"></div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 2. Le llamo para dar seguimiento a los resultados de sus análisis de laboratorio. Hasta el momento, no hemos recibido los resultados del laboratorio <span class="ph-lab">[Nombre del laboratorio]</span>.</p>
+                            <p class="english">2. I’m calling to follow up on your laboratory results. We have not yet received the results from <span class="ph-lab">[Laboratory Name]</span>.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 3. ¿Podría confirmarme si ya se realizó los análisis? Si ya se los realizó, ¿podría indicarme el nombre y la ubicación del laboratorio donde se los hizo?</p>
+                            <p class="english">3. May I ask if you have already completed your laboratory tests? If so, could you please confirm the name and location of the laboratory where you had them done?</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 4. Queremos asegurarnos de que los resultados se envíen a nuestro consultorio lo antes posible, especialmente antes de su próxima cita o procedimiento.</p>
+                            <p class="english">4. We would like to make sure that your results are sent to our office as soon as possible, especially before your upcoming appointment or procedure.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 5. Muchas gracias por su tiempo y colaboración. Agradecemos mucho su ayuda.</p>
+                            <p class="english">5. Thank you very much for your time and cooperation. We appreciate your help.</p>
+                        </div>
+                        <div class="script-block conversational-part">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 6. ¡Que tenga un excelente día!</p>
+                            <p class="english">6. Have a great day!</p>
+                        </div>
+
+                        <div class="script-block voicemail-part hidden">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> Hola, este es un mensaje para <span class="ph-patient">[Nombre del paciente]</span> del Departamento de Ortopedia del Dr. Spencer. Le llamamos para dar seguimiento a sus resultados del laboratorio <span class="ph-lab">[Nombre del laboratorio]</span>, los cuales aún no hemos recibido. Por favor, comuníquese con nosotros lo antes posible. ¡Gracias!</p>
+                            <p class="english">Hello, this is a message for <span class="ph-patient">[Patient’s Name]</span> from Dr. Spencer’s Orthopedic Department. We are calling to follow up on your laboratory results from <span class="ph-lab">[Laboratory Name]</span>, which we have not yet received. Please call us back as soon as possible. Thank you!</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Global Remarks Section -->
+                <div id="global-remarks-section" class="remarks-section hidden">
+                    <h3 class="answered-label" style="text-align: center; margin-bottom: 20px;">Call Remarks / Outcome</h3>
+                    
+                    <div class="remarks-group">
+                        <span class="remarks-group-label">Language</span>
+                        <div class="ans-btn-group">
+                            <button class="ans-btn remark-btn" data-group="lang" data-val="English">English</button>
+                            <button class="ans-btn remark-btn" data-group="lang" data-val="Spanish">Spanish</button>
+                        </div>
+                    </div>
+
+                    <div class="remarks-group">
+                        <span class="remarks-group-label">Patient Refused</span>
+                        <div class="ans-btn-group" style="flex-wrap: wrap;">
+                            <button class="ans-btn remark-btn" data-group="refuse" data-val="Patient refused. No preferred schedule.">No preferred schedule.</button>
+                            <button class="ans-btn remark-btn" data-group="refuse" data-val="Patient refused. No reason given.">No reason given.</button>
+                        </div>
+                    </div>
+
+                    <div class="remarks-group">
+                        <span class="remarks-group-label">Other Outcomes</span>
+                        <div class="ans-btn-group" style="flex-wrap: wrap;">
+                            <!-- Type-Specific Remarks -->
+                            <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-schedule" data-val="Appointment successfully booked">Appointment successfully booked</button>
+                            <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-change" data-val="Appointment date successfully changed">Appointment date successfully changed</button>
+                            <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-followup" data-val="Patient acknowledged">Patient acknowledged</button>
+                            <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-followup" data-val="Patient asked for more time">Patient asked for more time</button>
+                            
+                            <!-- Global Remarks -->
+                            <button class="ans-btn remark-btn" data-val="Call got disconnected. Called back, no answer.">Call got disconnected. Called back, no answer.</button>
+                            <button class="ans-btn remark-btn" data-val="Patient will call back">Patient will call back</button>
+                        </div>
+                    </div>
+                    
+                    <div class="remarks-output-container">
+                        <label style="font-size: 13px; font-weight: 600; color: #34495e;">Generated Remarks:</label>
+                        <textarea id="remarks-output" rows="2" placeholder="Select remarks above to generate..." readonly></textarea>
+                        <div class="output-actions" style="margin-top: 10px;">
+                            <button id="copy-remarks-btn" class="secondary-btn">Copy Remarks</button>
+                            <button id="submit-disposition-btn" class="send-btn">Submit Call Disposition</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="eod-generator" class="tab-content">
+                <h2>End of Day (EOD) Report Generator</h2>
+                
+                <div class="eod-controls">
+                    <label style="font-weight: 600; color: #2c3e50;">Report Date:</label>
+                    <input type="date" id="eod-date-picker" title="Select date to pull reports">
+                    <button id="fetch-eod-data-btn" class="primary-btn" style="padding: 10px 20px; font-size: 15px;">Fetch Data from Sheets</button>
+                    <span id="fetch-status-msg"></span>
+                </div>
+                
+                <div class="eod-section">
+                    <h3>1. Scheduled Appointment</h3>
+                    <div id="auto-scheduled-container" class="fetched-data-container">
+                        <p class="empty-msg">Select a date and click 'Fetch' to pull appointments...</p>
+                    </div>
+                </div>
+
+                <div class="eod-section">
+                    <h3>2. Changed Appointment Date</h3>
+                    <div id="auto-changed-container" class="fetched-data-container">
+                        <p class="empty-msg">Select a date and click 'Fetch' to pull changed schedules...</p>
+                    </div>
+                </div>
+
+                <div class="eod-section">
+                    <h3>3. Progress for Scheduled Surgeries</h3>
+                    <div id="auto-progress-container" class="fetched-data-container">
+                        <p class="empty-msg">Select a date and click 'Fetch' to pull surgery lab progress...</p>
+                    </div>
+                </div>
+
+                <div class="eod-section">
+                    <h3>4. Follow-ups With Other Clinics (Pending Labs)</h3>
+                    <div id="followups-container"></div>
+                    <button class="add-btn" id="add-followup-btn">+ Add Clinic Follow-up</button>
+                </div>
+
+                <div class="eod-actions" style="position: relative; display: flex; align-items: center; justify-content: center; gap: 15px;">
+                    <button id="generate-eod-btn" class="primary-btn eod-action-btn">Generate EOD Report</button>
+                    <button id="clear-eod-btn" class="remove-btn eod-action-btn">Clear Day (Reset EOD)</button>
+                    <span id="save-indicator" class="save-indicator hidden" style="position: absolute; right: 0;">Draft Saved ✔</span>
+                </div>
+
+                <div class="eod-output-container">
+                    <div id="eod-output-box" contenteditable="true" placeholder="Your generated EOD report will appear here..."></div>
+                    <div class="output-actions">
+                        <button id="copy-eod-btn" class="secondary-btn">Copy Table to Clipboard</button>
+                        <button id="send-sheet-btn" class="send-btn">Send Data to Google Sheets</button>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+    </main>
+
+    <template id="followup-template">
+        <div class="eod-row">
+            <input type="text" class="fup-clinic" placeholder="Clinic / Lab Name">
+            <input type="text" class="fup-patient" placeholder="Patient Name">
+            <input type="text" class="fup-pending" placeholder="Pending Result Details">
+            <input type="text" class="fup-status" placeholder="Status / Response">
+            <button class="remove-btn" type="button">X</button>
+        </div>
+    </template>
+
+    <?!= include('Script'); ?>
+</body>
+</html>

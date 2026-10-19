@@ -1,0 +1,867 @@
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const stickyBanner = document.getElementById('sticky-banner');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active-content'));
+            this.classList.add('active');
+            const targetId = this.getAttribute('data-target');
+            document.getElementById(targetId).classList.add('active-content');
+            
+            if (targetId !== 'outbounds') {
+                stickyBanner.style.display = 'none';
+            } else {
+                stickyBanner.style.display = 'flex';
+            }
+        });
+    });
+
+    const callBtns = document.querySelectorAll('.call-btn');
+    const scriptContents = document.querySelectorAll('.script-content');
+    const stickyAction = document.getElementById('sticky-action');
+    const stickyPatientName = document.getElementById('sticky-patient-name');
+    const inputPatient = document.getElementById('input-patient');
+    const fieldBank = document.getElementById('field-bank');
+
+    function updateStickyBanner() {
+        const patientName = inputPatient.value.trim() || 'None';
+        const activeBtn = document.querySelector('.call-btn.active-call-btn');
+        
+        stickyPatientName.textContent = patientName;
+        
+        if (!activeBtn) {
+            stickyAction.textContent = 'None';
+            stickyBanner.classList.add('hidden');
+        } else {
+            stickyAction.textContent = activeBtn.textContent;
+            stickyBanner.classList.remove('hidden');
+        }
+    }
+
+    function moveFieldsToSlots(scriptId) {
+        const groups = ['grp-patient', 'grp-clinic', 'grp-old-date', 'grp-reason', 'grp-date', 'grp-time', 'grp-lab'];
+        groups.forEach(id => {
+            const field = document.getElementById(id);
+            if (field) fieldBank.appendChild(field);
+        });
+
+        if (scriptId) {
+            const activeScript = document.getElementById(scriptId);
+            const slots = activeScript.querySelectorAll('.field-slot');
+            
+            slots.forEach(slot => {
+                const fieldId = slot.getAttribute('data-field');
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.classList.remove('hidden');
+                    slot.appendChild(field);
+                }
+            });
+        }
+    }
+
+    function resetAnswerToggles(scriptId) {
+        if (!scriptId) return;
+        const activeScript = document.getElementById(scriptId);
+        const yesBtn = activeScript.querySelector('.ans-yes');
+        const noBtn = activeScript.querySelector('.ans-no');
+        const conversationalParts = activeScript.querySelectorAll('.conversational-part');
+        const voicemailPart = activeScript.querySelector('.voicemail-part');
+
+        if (yesBtn && noBtn) {
+            yesBtn.classList.add('active-ans');
+            noBtn.classList.remove('active-ans');
+        }
+        conversationalParts.forEach(part => part.classList.remove('hidden'));
+        if (voicemailPart) voicemailPart.classList.add('hidden');
+    }
+
+    callBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            callBtns.forEach(b => b.classList.remove('active-call-btn'));
+            this.classList.add('active-call-btn');
+            
+            scriptContents.forEach(content => content.classList.add('hidden'));
+            const targetScript = this.getAttribute('data-script');
+            document.getElementById(targetScript).classList.remove('hidden');
+            document.getElementById('global-remarks-section').classList.remove('hidden');
+            
+            updateStickyBanner();
+            moveFieldsToSlots(targetScript);
+            resetAnswerToggles(targetScript);
+
+            // Clear remarks section when switching to a fresh script
+            document.querySelectorAll('.remark-btn').forEach(b => b.classList.remove('active-remark'));
+            if(document.getElementById('remarks-output')) {
+                document.getElementById('remarks-output').value = '';
+            }
+
+            // Show/Hide type-specific remarks based on active call script
+            document.querySelectorAll('.type-specific-remark').forEach(btn => {
+                if (btn.getAttribute('data-show-for') === targetScript) {
+                    btn.classList.remove('hidden');
+                } else {
+                    btn.classList.add('hidden');
+                }
+            });
+        });
+    });
+
+    const ansBtns = document.querySelectorAll('.ans-yes, .ans-no');
+    ansBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const container = this.closest('.call-answered-question');
+            const btns = container.querySelectorAll('.ans-yes, .ans-no');
+            btns.forEach(b => b.classList.remove('active-ans'));
+            this.classList.add('active-ans');
+
+            const val = this.getAttribute('data-val');
+            const scriptContent = this.closest('.script-content');
+            const conversationalParts = scriptContent.querySelectorAll('.conversational-part');
+            const voicemailPart = scriptContent.querySelector('.voicemail-part');
+
+            const grpDate = document.getElementById('grp-date');
+            const grpTime = document.getElementById('grp-time');
+
+            if (val === 'no') {
+                conversationalParts.forEach(part => part.classList.add('hidden'));
+                voicemailPart.classList.remove('hidden');
+                // Hide Date/Time pickers only if they are actively nested inside the current script tab
+                if (grpDate && grpDate.parentElement.closest('.script-content:not(.hidden)')) grpDate.classList.add('hidden');
+                if (grpTime && grpTime.parentElement.closest('.script-content:not(.hidden)')) grpTime.classList.add('hidden');
+            } else if (val === 'yes') {
+                conversationalParts.forEach(part => part.classList.remove('hidden'));
+                voicemailPart.classList.add('hidden');
+                // Restore Date/Time pickers
+                if (grpDate) grpDate.classList.remove('hidden');
+                if (grpTime) grpTime.classList.remove('hidden');
+            }
+        });
+    });
+
+    const clinicBtns = document.querySelectorAll('.clinic-btn');
+    clinicBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const container = this.closest('.input-group');
+            const btns = container.querySelectorAll('.clinic-btn');
+            btns.forEach(b => b.classList.remove('active-ans'));
+            this.classList.add('active-ans');
+            
+            let val = this.getAttribute('data-val');
+            document.querySelectorAll('.ph-clinic').forEach(el => el.textContent = val ? val : '[Palm Desert/La Quinta]');
+        });
+    });
+
+    const remarkBtns = document.querySelectorAll('.remark-btn');
+    const remarksOutput = document.getElementById('remarks-output');
+
+    function generateRemarks() {
+        let selectedRemarks = [];
+        document.querySelectorAll('.remark-btn.active-remark').forEach(btn => {
+            // Exclude the Language button from joining the actual Remarks output string
+            if (btn.getAttribute('data-group') !== 'lang') {
+                selectedRemarks.push(btn.getAttribute('data-val'));
+            }
+        });
+        if(remarksOutput) {
+            remarksOutput.value = selectedRemarks.join(' | ');
+        }
+    }
+
+    const apptTypeBtns = document.querySelectorAll('.appt-type-btn');
+    apptTypeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const container = this.closest('.call-answered-question');
+            const btns = container.querySelectorAll('.appt-type-btn');
+            btns.forEach(b => b.classList.remove('active-ans'));
+            this.classList.add('active-ans');
+            
+            const valEn = this.getAttribute('data-en');
+            const valEs = this.getAttribute('data-es');
+            document.querySelectorAll('.ph-appt-type-en').forEach(el => el.textContent = valEn);
+            document.querySelectorAll('.ph-appt-type-es').forEach(el => el.textContent = valEs);
+        });
+    });
+
+    remarkBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const group = this.getAttribute('data-group');
+            
+            if (this.classList.contains('active-remark')) {
+                this.classList.remove('active-remark');
+            } else {
+                if (group) {
+                    document.querySelectorAll(`.remark-btn[data-group="${group}"]`).forEach(b => b.classList.remove('active-remark'));
+                }
+                this.classList.add('active-remark');
+            }
+            generateRemarks();
+        });
+    });
+
+    const copyRemarksBtn = document.getElementById('copy-remarks-btn');
+    if (copyRemarksBtn) {
+        copyRemarksBtn.addEventListener('click', function() {
+            if(!remarksOutput.value) return;
+            remarksOutput.select();
+            remarksOutput.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(remarksOutput.value).then(function() {
+                const originalText = copyRemarksBtn.innerText;
+                copyRemarksBtn.innerText = "Copied!";
+                setTimeout(() => copyRemarksBtn.innerText = originalText, 2000);
+            });
+        });
+    }
+
+    const submitDispBtn = document.getElementById('submit-disposition-btn');
+    if (submitDispBtn) {
+        submitDispBtn.addEventListener('click', function() {
+            const activeCallBtn = document.querySelector('.call-btn.active-call-btn');
+            if (!activeCallBtn) {
+                alert("Please select a call script first.");
+                return;
+            }
+
+            const callType = activeCallBtn.getAttribute('data-script');
+            const patientName = document.getElementById('input-patient').value.trim() || "N/A";
+            const remarks = document.getElementById('remarks-output').value.trim() || "No remarks";
+            
+            const activeLang = document.querySelector('.remark-btn[data-group="lang"].active-remark');
+            let language = "N/A";
+            
+            if (activeLang) {
+                const langVal = activeLang.getAttribute('data-val');
+                // Convert to Acronyms for Google Sheets
+                if (langVal === "English") language = "EN";
+                else if (langVal === "Spanish") language = "ES";
+                else language = langVal;
+            }
+
+            const activeClinic = document.querySelector('.clinic-btn.active-ans');
+            const clinic = activeClinic ? activeClinic.getAttribute('data-val') : "N/A";
+
+            // Grab Raw Date Strings and push them through the existing MM/DD/YYYY HTML formatter
+            const rawNewDate = document.getElementById('input-date').value;
+            const newDate = rawNewDate ? formatDate(rawNewDate) : "N/A";
+            
+            const rawOldDate = document.getElementById('input-old-date').value;
+            const oldDate = rawOldDate ? formatDate(rawOldDate) : "N/A";
+
+            const reason = document.getElementById('input-reason').value.trim() || "N/A";
+            const labName = document.getElementById('input-lab').value.trim() || "N/A";
+
+            const activeApptType = document.querySelector('.appt-type-btn.active-ans');
+            const apptType = activeApptType ? activeApptType.innerText : "N/A";
+
+            const payload = {
+                callType: callType,
+                patientName: patientName,
+                language: language,
+                apptType: apptType,
+                clinic: clinic,
+                newDate: newDate,
+                oldDate: oldDate,
+                reason: reason,
+                labName: labName,
+                remarks: remarks
+            };
+
+            const originalText = submitDispBtn.innerText;
+            submitDispBtn.innerText = 'Submitting...';
+            submitDispBtn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    submitDispBtn.innerText = 'Submitted Successfully!';
+                    submitDispBtn.style.backgroundColor = '#0984e3';
+                    
+                    // Automatically clear the Patient and Remarks visually to ready for the next live call
+                    setTimeout(() => {
+                        submitDispBtn.innerText = originalText;
+                        submitDispBtn.disabled = false;
+                        submitDispBtn.style.backgroundColor = '';
+                        
+                        document.getElementById('input-patient').value = '';
+                        document.getElementById('input-patient').dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        document.querySelectorAll('.remark-btn').forEach(b => b.classList.remove('active-remark'));
+                        document.getElementById('remarks-output').value = '';
+                        
+                        // Visually clear Appointment Type toggles
+                        document.querySelectorAll('.appt-type-btn').forEach(b => b.classList.remove('active-ans'));
+                        document.querySelectorAll('.ph-appt-type-en').forEach(el => el.textContent = '[pre-op / surgery / post-op]');
+                        document.querySelectorAll('.ph-appt-type-es').forEach(el => el.textContent = '[preoperatoria / de cirugía / postoperatoria]');
+                    }, 2500);
+                })
+                .withFailureHandler(function(error) {
+                    alert("Error: " + error.message);
+                    submitDispBtn.innerText = 'Error Submitting';
+                    submitDispBtn.style.backgroundColor = '#d63031';
+                    setTimeout(() => {
+                        submitDispBtn.innerText = originalText;
+                        submitDispBtn.disabled = false;
+                        submitDispBtn.style.backgroundColor = '';
+                    }, 3000);
+                })
+                .logCallDisposition(payload);
+        });
+    }
+
+    // Pre-load voices for TTS
+    let synthVoices = [];
+    if ('speechSynthesis' in window) {
+        synthVoices = window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+            synthVoices = window.speechSynthesis.getVoices();
+        };
+    }
+
+    document.querySelectorAll('.tts-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            let text = this.parentElement.textContent.replace('🔊', '').trim().replace(/^\d+\.\s*/, '').trim();
+            
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-MX';
+                utterance.rate = 0.9;
+                utterance.pitch = 1.2; // Slightly raising pitch induces a more feminine tone natively
+                
+                if (synthVoices.length === 0) synthVoices = window.speechSynthesis.getVoices();
+                
+                // Intentionally search the local OS for known female Spanish profiles
+                const femaleVoice = synthVoices.find(v => 
+                    v.lang.startsWith('es') && 
+                    (v.name.toLowerCase().includes('female') || 
+                     v.name.includes('Monica') || 
+                     v.name.includes('Paulina') || 
+                     v.name.includes('Sabina') || 
+                     v.name.includes('Elena') ||
+                     v.name.includes('Laura'))
+                );
+                
+                if (femaleVoice) {
+                    utterance.voice = femaleVoice;
+                }
+                
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert("Text-to-Speech is not supported in this browser.");
+            }
+        });
+    });
+
+    inputPatient.addEventListener('input', updateStickyBanner);
+
+    const inputs = {
+        'input-patient': { class: 'ph-patient', default: '[Nombre del paciente / Patient]' },
+        'input-lab': { class: 'ph-lab', default: '[Laboratorio / Laboratory Name]' }
+    };
+
+    document.addEventListener('focusout', function(e) {
+        if (e.target && e.target.id === 'input-patient') {
+            let str = e.target.value;
+            if (str) {
+                let formatted = str.split(' ').map(word => {
+                    if (!word) return '';
+                    // Capitalize first letter, retain everything else exactly as typed (e.g. McDonald)
+                    return word.charAt(0).toUpperCase() + word.slice(1);
+                }).join(' ');
+                
+                // If it changed, re-assign and trigger 'input' so scripts/banner auto-update
+                if (str !== formatted) {
+                    e.target.value = formatted;
+                    e.target.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        }
+    });
+
+    const reasonTranslations = {
+        "Your insurance does not approve at that facility": "Su seguro no aprueba en esa clínica",
+        "Your insurance does not approve the payment yet": "Su seguro aún no aprueba el pago",
+        "Insurance will not cover": "El seguro no lo cubrirá",
+        "Schedule is full": "La agenda está llena"
+    };
+
+    document.getElementById('input-reason').addEventListener('input', function() {
+        let valEn = this.value.trim();
+        let valEs = reasonTranslations[valEn] || valEn;
+        document.querySelectorAll('.ph-reason-en').forEach(el => el.textContent = valEn ? valEn : '[Reason]');
+        document.querySelectorAll('.ph-reason-es').forEach(el => el.textContent = valEs ? valEs : '[Motivo]');
+    });
+
+    Object.keys(inputs).forEach(id => {
+        document.getElementById(id).addEventListener('input', function() {
+            let val = this.value.trim();
+            const defaultText = inputs[id].default;
+            document.querySelectorAll(`.${inputs[id].class}`).forEach(el => el.textContent = val ? val : defaultText);
+        });
+    });
+
+    const esDays = ["", "primero", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve", "treinta", "treinta y uno"];
+    const esMonths = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const esMins = ["en punto", "y uno", "y dos", "y tres", "y cuatro", "y cinco", "y seis", "y siete", "y ocho", "y nueve", "y diez", "y once", "y doce", "y trece", "y catorce", "y quince", "y dieciséis", "y diecisiete", "y dieciocho", "y diecinueve", "y veinte", "y veintiuno", "y veintidós", "y veintitrés", "y veinticuatro", "y veinticinco", "y veintiséis", "y veintisiete", "y veintiocho", "y veintinueve", "y treinta", "y treinta y uno", "y treinta y dos", "y treinta y tres", "y treinta y cuatro", "y treinta y cinco", "y treinta y seis", "y treinta y siete", "y treinta y ocho", "y treinta y nueve", "y cuarenta", "y cuarenta y uno", "y cuarenta y dos", "y cuarenta y tres", "y cuarenta y cuatro", "y cuarenta y cinco", "y cuarenta y seis", "y cuarenta y siete", "y cuarenta y ocho", "y cuarenta y nueve", "y cincuenta", "y cincuenta y uno", "y cincuenta y dos", "y cincuenta y tres", "y cincuenta y cuatro", "y cincuenta y cinco", "y cincuenta y seis", "y cincuenta y siete", "y cincuenta y ocho", "y cincuenta y nueve"];
+
+    function getYearEs(year) {
+        let num = parseInt(year);
+        if(num >= 2000 && num < 2100) {
+            let lastTwo = num % 100;
+            let lastTwoText = "";
+            if (lastTwo > 0 && lastTwo <= 31) lastTwoText = esDays[lastTwo];
+            else if (lastTwo >= 30) {
+                const tens = {3:"treinta", 4:"cuarenta", 5:"cincuenta", 6:"sesenta", 7:"setenta", 8:"ochenta", 9:"noventa"};
+                let ten = Math.floor(lastTwo / 10);
+                let unit = lastTwo % 10;
+                lastTwoText = tens[ten] + (unit > 0 ? " y " + esDays[unit] : "");
+            }
+            return "dos mil " + lastTwoText;
+        }
+        return year;
+    }
+
+    function formatSpanishDate(dateStr) {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        const year = parts[0];
+        const month = parseInt(parts[1]);
+        const day = parseInt(parts[2]);
+        return `${esDays[day]} de ${esMonths[month]} de ${getYearEs(year)}`.trim();
+    }
+
+    function formatSpanishTime(timeStr) {
+        if (!timeStr) return '';
+        let [hour, minute] = timeStr.split(':');
+        hour = parseInt(hour);
+        minute = parseInt(minute);
+        
+        let period = "de la mañana";
+        if (hour >= 12 && hour < 19) period = "de la tarde";
+        else if (hour >= 19 || hour === 0) period = "de la noche";
+        
+        let hr12 = hour % 12;
+        if (hr12 === 0) hr12 = 12;
+        
+        let hrText = esDays[hr12];
+        if (hr12 === 1) hrText = "una";
+        
+        let prefix = (hr12 === 1) ? "la" : "las";
+        return `${prefix} ${hrText} ${esMins[minute]} ${period}`;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const [year, month, day] = dateStr.split('-');
+        return `${month}/${day}/${year}`;
+    }
+
+    function formatTime(timeStr) {
+        if (!timeStr) return '';
+        let [hour, minute] = timeStr.split(':');
+        let ampm = 'AM';
+        hour = parseInt(hour);
+        if (hour >= 12) {
+            ampm = 'PM';
+            if (hour > 12) hour -= 12;
+        }
+        if (hour === 0) hour = 12;
+        return `${hour}:${minute} ${ampm}`;
+    }
+
+    // Set Date limitations & Event Listeners
+    const todayObj = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000));
+    const todayStr = todayObj.toISOString().split('T')[0];
+    let nextYearObj = new Date(todayObj);
+    nextYearObj.setFullYear(nextYearObj.getFullYear() + 1);
+    const maxStr = nextYearObj.toISOString().split('T')[0];
+
+    ['input-date', 'input-old-date'].forEach(id => {
+        let el = document.getElementById(id);
+        if(el) {
+            el.setAttribute('min', todayStr);
+            el.setAttribute('max', maxStr);
+            
+            el.addEventListener('input', function(e) {
+                if (this.value) {
+                    let parts = this.value.split('-');
+                    if(parts[0] && parts[0].length > 4) {
+                        parts[0] = parts[0].slice(0, 4);
+                        this.value = parts.join('-');
+                    }
+                    if (this.value > maxStr) this.value = maxStr;
+                }
+                let valEn = this.value ? formatDate(this.value) : '[Date]';
+                let valEs = this.value ? formatSpanishDate(this.value) : '[Fecha]';
+                
+                let enClass = id === 'input-date' ? '.ph-date-en' : '.ph-old-date-en';
+                let esClass = id === 'input-date' ? '.ph-date-es' : '.ph-old-date-es';
+                
+                document.querySelectorAll(enClass).forEach(node => node.textContent = valEn);
+                document.querySelectorAll(esClass).forEach(node => node.textContent = valEs);
+            });
+        }
+    });
+
+    document.getElementById('input-time').addEventListener('input', function() {
+        let valEn = this.value ? formatTime(this.value) : '[Time]';
+        let valEs = this.value ? formatSpanishTime(this.value) : '[Hora]';
+        document.querySelectorAll('.ph-time-en').forEach(node => node.textContent = valEn);
+        document.querySelectorAll('.ph-time-es').forEach(node => node.textContent = valEs);
+    });
+
+    // Fetch global state variable for generated text output
+    let fetchedEODData = { scheduled: [], changed: [], followup: [] };
+
+    // Set Default UTC-5 Date on Date Picker
+    function setEODDefaultDate() {
+        const d = new Date();
+        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        const nd = new Date(utc + (3600000 * -5)); // apply UTC-5 offset
+        
+        const year = nd.getFullYear();
+        const month = String(nd.getMonth() + 1).padStart(2, '0');
+        const day = String(nd.getDate()).padStart(2, '0');
+        
+        const datePicker = document.getElementById('eod-date-picker');
+        if (datePicker) datePicker.value = `${year}-${month}-${day}`;
+    }
+    setEODDefaultDate();
+
+    let saveTimeout;
+    function saveEODState() {
+        const eodData = {
+            followups: document.getElementById('followups-container').innerHTML
+        };
+        localStorage.setItem('eodDraft', JSON.stringify(eodData));
+        attachListenersToEOD();
+        
+        const indicator = document.getElementById('save-indicator');
+        if(indicator) {
+            indicator.classList.remove('hidden');
+            indicator.classList.add('fade-in-out');
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                indicator.classList.remove('fade-in-out');
+                indicator.classList.add('hidden');
+            }, 2000);
+        }
+    }
+
+    function attachListenersToEOD() {
+        const eodInputs = document.querySelectorAll('#eod-generator input[type="text"], #eod-generator input[type="datetime-local"], #eod-generator input[type="date"]');
+        eodInputs.forEach(input => {
+            input.removeEventListener('input', inputChangeHandler);
+            input.addEventListener('input', inputChangeHandler);
+        });
+
+        const tbdBoxes = document.querySelectorAll('.tbd-checkbox');
+        tbdBoxes.forEach(box => {
+            box.removeEventListener('change', checkboxChangeHandler);
+            box.addEventListener('change', checkboxChangeHandler);
+        });
+
+        const removeBtns = document.querySelectorAll('#eod-generator .remove-btn');
+        removeBtns.forEach(btn => {
+            if (btn.id === 'clear-eod-btn') return;
+            btn.removeEventListener('click', removeRowHandler);
+            btn.addEventListener('click', removeRowHandler);
+        });
+    }
+
+    function inputChangeHandler(e) {
+        e.target.setAttribute('value', e.target.value);
+        e.target.classList.remove('error-border');
+        saveEODState();
+    }
+
+    function checkboxChangeHandler(e) {
+        const dateInput = e.target.closest('.date-tbd-group').querySelector('input[type="datetime-local"], input[type="date"]');
+        if (e.target.checked) {
+            e.target.setAttribute('checked', 'checked');
+            dateInput.disabled = true;
+            dateInput.toggleAttribute('disabled', true);
+        } else {
+            e.target.removeAttribute('checked');
+            dateInput.disabled = false;
+            dateInput.removeAttribute('disabled');
+        }
+        saveEODState();
+    }
+
+    function removeRowHandler(e) {
+        e.target.closest('.eod-row').remove();
+        saveEODState();
+    }
+
+    function appendTemplateRow(templateId, containerId) {
+        const template = document.getElementById(templateId);
+        const container = document.getElementById(containerId);
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+        saveEODState();
+    }
+
+    document.getElementById('add-followup-btn').addEventListener('click', () => appendTemplateRow('followup-template', 'followups-container'));
+
+    document.getElementById('clear-eod-btn').addEventListener('click', function() {
+        if(confirm("Are you sure you want to clear today's manual entries?")) {
+            document.getElementById('followups-container').innerHTML = '';
+            document.getElementById('eod-output-box').innerHTML = '';
+            localStorage.removeItem('eodDraft');
+        }
+    });
+
+    const savedEOD = localStorage.getItem('eodDraft');
+    if (savedEOD) {
+        const eodData = JSON.parse(savedEOD);
+        document.getElementById('followups-container').innerHTML = eodData.followups || '';
+        attachListenersToEOD();
+    }
+
+    document.getElementById('fetch-eod-data-btn').addEventListener('click', function() {
+        const dateVal = document.getElementById('eod-date-picker').value;
+        if(!dateVal) { alert("Select a date first."); return; }
+        
+        const [year, month, day] = dateVal.split('-');
+        const sheetDateStr = `${month}/${day}/${year}`; // Formatted as MM/dd/yyyy for Backend scan
+        
+        const btn = this;
+        const statusMsg = document.getElementById('fetch-status-msg');
+        btn.disabled = true;
+        statusMsg.textContent = "Fetching...";
+        statusMsg.style.color = "#f39c12";
+
+        google.script.run
+            .withSuccessHandler(function(data) {
+                btn.disabled = false;
+                statusMsg.textContent = "Data successfully loaded!";
+                statusMsg.style.color = "#27ae60";
+                setTimeout(() => statusMsg.textContent = "", 3000);
+                
+                fetchedEODData = data;
+                renderFetchedData();
+            })
+            .withFailureHandler(function(error) {
+                btn.disabled = false;
+                statusMsg.textContent = "Error fetching data.";
+                statusMsg.style.color = "#e74c3c";
+                setTimeout(() => statusMsg.textContent = "", 3000);
+            })
+            .fetchEODData(sheetDateStr);
+    });
+
+    function renderFetchedData() {
+        const contSched = document.getElementById('auto-scheduled-container');
+        const contChange = document.getElementById('auto-changed-container');
+        const contProg = document.getElementById('auto-progress-container');
+        
+        const getListHTML = (arr, renderFn) => arr.length === 0 ? `<p class="empty-msg">No logs found for this date.</p>` : arr.map(renderFn).join('');
+        
+        contSched.innerHTML = getListHTML(fetchedEODData.scheduled, (item) => `
+            <div class="fetched-item">
+                <strong>${item.patient}</strong> (${item.type}) at ${item.clinic}<br>
+                Date Set: ${item.date} | Remarks: <em>${item.remarks}</em>
+            </div>
+        `);
+        
+        contChange.innerHTML = getListHTML(fetchedEODData.changed, (item) => `
+            <div class="fetched-item">
+                <strong>${item.patient}</strong> (${item.clinic})<br>
+                Changed: ${item.oldDate} ➔ ${item.newDate} | Reason: ${item.reason} | Remarks: <em>${item.remarks}</em>
+            </div>
+        `);
+        
+        contProg.innerHTML = getListHTML(fetchedEODData.followup, (item) => `
+            <div class="fetched-item">
+                <strong>${item.patient}</strong> | Lab: ${item.lab}<br>
+                Remarks: <em>${item.remarks}</em>
+            </div>
+        `);
+    }
+
+    document.getElementById('generate-eod-btn').addEventListener('click', function() {
+        let hasErrors = false;
+        
+        document.querySelectorAll('.error-border').forEach(el => el.classList.remove('error-border'));
+        
+        const inputsToValidate = document.querySelectorAll('#eod-generator .eod-row input[type="text"]');
+        
+        inputsToValidate.forEach(input => {
+            if (input.value.trim() === '') {
+                input.classList.add('error-border');
+                hasErrors = true;
+            }
+        });
+        
+        if (hasErrors) {
+            const proceed = confirm("Some Follow-up fields are blank. Ignore and generate anyway?");
+            if (!proceed) return;
+        }
+
+        const reportDate = document.getElementById('eod-date-picker').value || "Unknown Date";
+        
+        // Setup Inline Styles for perfect Gmail Email rendering
+        const tableStyle = 'style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 14px; font-family: sans-serif;"';
+        const thStyle = 'style="border: 1px solid #bdc3c7; padding: 10px; background-color: #ecf0f1; text-align: left; font-weight: bold; color: #2c3e50;"';
+        const tdStyle = 'style="border: 1px solid #bdc3c7; padding: 10px; color: #34495e;"';
+        const h3Style = 'style="color: #34495e; font-family: sans-serif; font-size: 16px; margin-top: 20px; margin-bottom: 10px;"';
+        const noneStyle = 'style="margin: 0; color: #7f8c8d; font-style: italic; font-family: sans-serif;"';
+
+        let eodHTML = `<div style="font-family: sans-serif; color: #333; max-width: 900px;">`;
+        eodHTML += `<h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; margin-bottom: 20px;">EOD REPORT - ${reportDate}</h2>`;
+
+        let plainTextEOD = `EOD REPORT - ${reportDate}\n\n`;
+
+        // 1. SCHEDULED APPOINTMENT
+        eodHTML += `<h3 ${h3Style}>1. SCHEDULED APPOINTMENT</h3>`;
+        plainTextEOD += "1. SCHEDULED APPOINTMENT\n";
+        if (fetchedEODData.scheduled.length === 0) {
+            eodHTML += `<p ${noneStyle}>- None</p>`;
+            plainTextEOD += "- None\n";
+        } else {
+            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Patient Name</th><th ${thStyle}>Language</th><th ${thStyle}>Type</th><th ${thStyle}>Clinic</th><th ${thStyle}>Date Set</th><th ${thStyle}>Remarks</th></tr></thead><tbody>`;
+            fetchedEODData.scheduled.forEach(item => {
+                eodHTML += `<tr><td ${tdStyle}>${item.patient}</td><td ${tdStyle}>${item.lang}</td><td ${tdStyle}>${item.type}</td><td ${tdStyle}>${item.clinic}</td><td ${tdStyle}>${item.date}</td><td ${tdStyle}>${item.remarks}</td></tr>`;
+                plainTextEOD += `- ${item.patient} | Language: ${item.lang} | ${item.type} Appointment (${item.clinic}) | Date Set: ${item.date} | Remarks: ${item.remarks}\n`;
+            });
+            eodHTML += `</tbody></table>`;
+        }
+        plainTextEOD += "\n";
+
+        // 2. CHANGED APPOINTMENT DATE
+        eodHTML += `<h3 ${h3Style}>2. CHANGED APPOINTMENT DATE</h3>`;
+        plainTextEOD += "2. CHANGED APPOINTMENT DATE\n";
+        if (fetchedEODData.changed.length === 0) {
+            eodHTML += `<p ${noneStyle}>- None</p>`;
+            plainTextEOD += "- None\n";
+        } else {
+            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Patient Name</th><th ${thStyle}>Language</th><th ${thStyle}>Clinic</th><th ${thStyle}>Old Date</th><th ${thStyle}>New Date</th><th ${thStyle}>Reason</th><th ${thStyle}>Remarks</th></tr></thead><tbody>`;
+            fetchedEODData.changed.forEach(item => {
+                eodHTML += `<tr><td ${tdStyle}>${item.patient}</td><td ${tdStyle}>${item.lang}</td><td ${tdStyle}>${item.clinic}</td><td ${tdStyle}>${item.oldDate}</td><td ${tdStyle}>${item.newDate}</td><td ${tdStyle}>${item.reason}</td><td ${tdStyle}>${item.remarks}</td></tr>`;
+                plainTextEOD += `- ${item.patient} | Language: ${item.lang} | Clinic: ${item.clinic} | Changed: ${item.oldDate} -> ${item.newDate} | Reason: ${item.reason} | Remarks: ${item.remarks}\n`;
+            });
+            eodHTML += `</tbody></table>`;
+        }
+        plainTextEOD += "\n";
+
+        // 3. PROGRESS FOR SCHEDULED SURGERIES
+        eodHTML += `<h3 ${h3Style}>3. PROGRESS FOR SCHEDULED SURGERIES</h3>`;
+        plainTextEOD += "3. PROGRESS FOR SCHEDULED SURGERIES\n";
+        if (fetchedEODData.followup.length === 0) {
+            eodHTML += `<p ${noneStyle}>- None</p>`;
+            plainTextEOD += "- None\n";
+        } else {
+            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Patient Name</th><th ${thStyle}>Language</th><th ${thStyle}>Pending Lab</th><th ${thStyle}>Remarks</th></tr></thead><tbody>`;
+            fetchedEODData.followup.forEach(item => {
+                eodHTML += `<tr><td ${tdStyle}>${item.patient}</td><td ${tdStyle}>${item.lang}</td><td ${tdStyle}>${item.lab}</td><td ${tdStyle}>${item.remarks}</td></tr>`;
+                plainTextEOD += `- ${item.patient} | Language: ${item.lang} | Pending Lab: ${item.lab} | Remarks: ${item.remarks}\n`;
+            });
+            eodHTML += `</tbody></table>`;
+        }
+        plainTextEOD += "\n";
+
+        // 4. FOLLOW-UPS WITH OTHER CLINICS
+        eodHTML += `<h3 ${h3Style}>4. FOLLOW-UPS WITH OTHER CLINICS</h3>`;
+        plainTextEOD += "4. FOLLOW-UPS WITH OTHER CLINICS\n";
+        const fupRows = document.querySelectorAll('#followups-container .eod-row');
+        if (fupRows.length === 0) {
+            eodHTML += `<p ${noneStyle}>- None</p>`;
+            plainTextEOD += "- None\n";
+        } else {
+            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Clinic/Lab Name</th><th ${thStyle}>Patient Name</th><th ${thStyle}>Pending Result Details</th><th ${thStyle}>Status/Response</th></tr></thead><tbody>`;
+            fupRows.forEach(row => {
+                const clinic = row.querySelector('.fup-clinic').value || "Unknown Clinic";
+                const patient = row.querySelector('.fup-patient').value || "Unknown Patient";
+                const pending = row.querySelector('.fup-pending').value || "Unknown Lab";
+                const status = row.querySelector('.fup-status').value || "Pending";
+                eodHTML += `<tr><td ${tdStyle}>${clinic}</td><td ${tdStyle}>${patient}</td><td ${tdStyle}>${pending}</td><td ${tdStyle}>${status}</td></tr>`;
+                plainTextEOD += `- Called ${clinic} regarding ${patient}'s pending ${pending} | Status: ${status}\n`;
+            });
+            eodHTML += `</tbody></table>`;
+        }
+
+        eodHTML += `</div>`;
+        const outputBox = document.getElementById('eod-output-box');
+        outputBox.innerHTML = eodHTML;
+        outputBox.setAttribute('data-raw-eod', plainTextEOD);
+    });
+
+    document.getElementById('copy-eod-btn').addEventListener('click', function() {
+        const outputBox = document.getElementById('eod-output-box');
+        const html = outputBox.innerHTML;
+        const text = outputBox.innerText;
+
+        if (!html.trim()) return;
+
+        // Uses modern ClipboardItem API which natively supports formatting copying (ideal for Mail clients)
+        if (navigator.clipboard && window.ClipboardItem) {
+            const data = [new ClipboardItem({
+                'text/plain': new Blob([text], { type: 'text/plain' }),
+                'text/html': new Blob([html], { type: 'text/html' })
+            })];
+            navigator.clipboard.write(data).then(() => {
+                const btn = document.getElementById('copy-eod-btn');
+                const originalText = btn.innerText;
+                btn.innerText = "Table Copied!";
+                setTimeout(() => btn.innerText = originalText, 2000);
+            });
+        } else {
+            // Fallback selection range approach for older browsers
+            const range = document.createRange();
+            range.selectNodeContents(outputBox);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.execCommand('copy');
+            selection.removeAllRanges();
+            
+            const btn = document.getElementById('copy-eod-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "Table Copied!";
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+    });
+
+    document.getElementById('send-sheet-btn').addEventListener('click', function() {
+        // Send the generated plain text version with the ' | ' separators
+        const reportData = document.getElementById('eod-output-box').getAttribute('data-raw-eod');
+        
+        if (!reportData || !reportData.trim()) {
+            alert('Please generate the EOD report before sending.');
+            return;
+        }
+
+        const btn = this;
+        const originalText = btn.innerText;
+        btn.innerText = 'Sending...';
+        btn.disabled = true;
+
+        google.script.run
+            .withSuccessHandler(function(response) {
+                btn.innerText = 'Sent Successfully!';
+                btn.style.backgroundColor = '#0984e3';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    btn.style.backgroundColor = '';
+                }, 3000);
+            })
+            .withFailureHandler(function(error) {
+                btn.innerText = 'Error Sending';
+                btn.style.backgroundColor = '#d63031';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    btn.style.backgroundColor = '';
+                }, 3000);
+            })
+            .saveEODData(reportData);
+    });
+});
+</script>

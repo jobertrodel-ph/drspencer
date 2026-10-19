@@ -1,0 +1,115 @@
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Launch Web App')
+      .addItem('Open Assistant in New Tab', 'openWebApp')
+      .addToUi();
+}
+
+function openWebApp() {
+  var htmlOutput = HtmlService.createHtmlOutput(
+    '<script>' +
+    'window.open("https://script.google.com/macros/s/AKfycbyMDaTZ6XLsVjX8clwh1Sythj4wkSRsmx0oc_gcNC-OMaxJCix9U-QbFkZ4LqTNhIB1yA/exec", "_blank");' +
+    'google.script.host.close();' +
+    '</script>'
+  )
+  .setWidth(250)
+  .setHeight(50);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Redirecting to Web App...');
+}
+
+function doGet() {
+  return HtmlService.createTemplateFromFile('Index')
+      .evaluate()
+      .setTitle("Call Workflow & EOD Generator")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+function saveEODData(report) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("EOD Reports");
+    
+    if (!sheet) {
+      throw new Error("Sheet 'EOD Reports' not found. Please create it in your spreadsheet.");
+    }
+    
+    // Formats today's date into UTC-5 without the time (MM/dd/yyyy)
+    var dateOnly = Utilities.formatDate(new Date(), "GMT-05:00", "MM/dd/yyyy");
+    
+    sheet.appendRow([dateOnly, report]);
+    return "Success";
+  } catch (e) {
+    throw e;
+  }
+}
+
+function logCallDisposition(payload) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Formats today's date into UTC-5 without the time (MM/dd/yyyy)
+    var dateOnly = Utilities.formatDate(new Date(), "GMT-05:00", "MM/dd/yyyy");
+    
+    var sheetName = "";
+    var rowData = [];
+
+    // Construct the payload row based on the specific Call Type
+    if (payload.callType === "script-schedule") {
+      sheetName = "Schedule an Appointment";
+      rowData = [dateOnly, payload.patientName, payload.language, payload.apptType, payload.newDate, payload.clinic, payload.remarks];
+    } else if (payload.callType === "script-change") {
+      sheetName = "Change Appointment Date";
+      rowData = [dateOnly, payload.patientName, payload.language, payload.reason, payload.oldDate, payload.newDate, payload.clinic, payload.remarks];
+    } else if (payload.callType === "script-followup") {
+      sheetName = "Follow up missing laboratory result";
+      rowData = [dateOnly, payload.patientName, payload.language, payload.labName, payload.remarks];
+    } else {
+      throw new Error("Unknown call type configuration.");
+    }
+
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      throw new Error("Sheet '" + sheetName + "' not found. Please create it in your spreadsheet.");
+    }
+
+    sheet.appendRow(rowData);
+    return "Success";
+  } catch (e) {
+    throw e;
+  }
+}
+
+function fetchEODData(dateStr) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var data = { scheduled: [], changed: [], followup: [] };
+    
+    function getRows(sheetName, category, colMap) {
+      var sheet = ss.getSheetByName(sheetName);
+      if (!sheet) return;
+      var rows = sheet.getDataRange().getDisplayValues();
+      for (var i = 1; i < rows.length; i++) {
+        // Check if Column A matches the requested Date string
+        if (rows[i][0] === dateStr) {
+          var rowObj = {};
+          for (var key in colMap) {
+            rowObj[key] = rows[i][colMap[key]];
+          }
+          data[category].push(rowObj);
+        }
+      }
+    }
+    
+    // Call Date is index [0] in getDisplayValues(). We map the other columns respectively:
+    getRows("Schedule an Appointment", "scheduled", { patient: 1, lang: 2, type: 3, date: 4, clinic: 5, remarks: 6 });
+    getRows("Change Appointment Date", "changed", { patient: 1, lang: 2, reason: 3, oldDate: 4, newDate: 5, clinic: 6, remarks: 7 });
+    getRows("Follow up missing laboratory result", "followup", { patient: 1, lang: 2, lab: 3, remarks: 4 });
+    
+    return data;
+  } catch (e) {
+    throw e;
+  }
+}
