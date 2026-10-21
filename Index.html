@@ -348,6 +348,57 @@
             </div>
 
         </section>
+
+        <!-- Spanish Translator Sidebar -->
+        <aside class="calc-sidebar">
+            <h3 class="calc-title">Spanish Translator</h3>
+            
+            <div style="padding: 10px; background-color: #ecf0f1; border-bottom: 1px solid #bdc3c7;">
+                <select id="translator-mode" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; color: #2c3e50; font-size: 14px;">
+                    <option value="number">Number to Spanish</option>
+                    <option value="date">Date to Spanish</option>
+                    <option value="time">Time to Spanish</option>
+                    <option value="datetime">Date & Time to Spanish</option>
+                </select>
+            </div>
+
+            <div class="calc-display-container">
+                <div id="mode-number-input" class="trans-input-group">
+                    <input type="text" id="calc-input" readonly placeholder="0">
+                </div>
+                <div id="mode-date-input" class="trans-input-group hidden">
+                    <input type="date" id="trans-date-input" class="trans-date-time-box">
+                </div>
+                <div id="mode-time-input" class="trans-input-group hidden">
+                    <input type="time" id="trans-time-input" class="trans-date-time-box">
+                </div>
+                <div id="mode-datetime-input" class="trans-input-group hidden">
+                    <input type="datetime-local" id="trans-datetime-input" class="trans-date-time-box">
+                </div>
+                
+                <div class="calc-output-area">
+                    <p id="calc-spanish-text" class="calc-spanish-text">cero</p>
+                    <button class="tts-btn calc-tts" id="calc-tts-btn" title="Listen to pronunciation">🔊</button>
+                </div>
+            </div>
+            <div class="calc-keypad" id="calc-keypad">
+                <button class="calc-btn">7</button>
+                <button class="calc-btn">8</button>
+                <button class="calc-btn">9</button>
+                
+                <button class="calc-btn">4</button>
+                <button class="calc-btn">5</button>
+                <button class="calc-btn">6</button>
+                
+                <button class="calc-btn">1</button>
+                <button class="calc-btn">2</button>
+                <button class="calc-btn">3</button>
+                
+                <button class="calc-btn calc-action" data-action="C">C</button>
+                <button class="calc-btn">0</button>
+                <button class="calc-btn calc-action calc-del" data-action="DEL">⌫</button>
+            </div>
+        </aside>
     </main>
 
     <template id="followup-template">

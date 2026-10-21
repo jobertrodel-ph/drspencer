@@ -1,6 +1,19 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
+    // Globally enforce a maximum of 4 digits for years on ALL date/datetime inputs via Event Capturing
+    document.addEventListener('input', function(e) {
+        if (e.target && (e.target.type === 'date' || e.target.type === 'datetime-local')) {
+            if (e.target.value) {
+                let parts = e.target.value.split('-');
+                if (parts[0] && parts[0].length > 4) {
+                    parts[0] = parts[0].slice(0, 4);
+                    e.target.value = parts.join('-');
+                }
+            }
+        }
+    }, true);
+
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     const stickyBanner = document.getElementById('sticky-banner');
@@ -410,20 +423,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const esMins = ["en punto", "y uno", "y dos", "y tres", "y cuatro", "y cinco", "y seis", "y siete", "y ocho", "y nueve", "y diez", "y once", "y doce", "y trece", "y catorce", "y quince", "y dieciséis", "y diecisiete", "y dieciocho", "y diecinueve", "y veinte", "y veintiuno", "y veintidós", "y veintitrés", "y veinticuatro", "y veinticinco", "y veintiséis", "y veintisiete", "y veintiocho", "y veintinueve", "y treinta", "y treinta y uno", "y treinta y dos", "y treinta y tres", "y treinta y cuatro", "y treinta y cinco", "y treinta y seis", "y treinta y siete", "y treinta y ocho", "y treinta y nueve", "y cuarenta", "y cuarenta y uno", "y cuarenta y dos", "y cuarenta y tres", "y cuarenta y cuatro", "y cuarenta y cinco", "y cuarenta y seis", "y cuarenta y siete", "y cuarenta y ocho", "y cuarenta y nueve", "y cincuenta", "y cincuenta y uno", "y cincuenta y dos", "y cincuenta y tres", "y cincuenta y cuatro", "y cincuenta y cinco", "y cincuenta y seis", "y cincuenta y siete", "y cincuenta y ocho", "y cincuenta y nueve"];
 
     function getYearEs(year) {
-        let num = parseInt(year);
-        if(num >= 2000 && num < 2100) {
-            let lastTwo = num % 100;
-            let lastTwoText = "";
-            if (lastTwo > 0 && lastTwo <= 31) lastTwoText = esDays[lastTwo];
-            else if (lastTwo >= 30) {
-                const tens = {3:"treinta", 4:"cuarenta", 5:"cincuenta", 6:"sesenta", 7:"setenta", 8:"ochenta", 9:"noventa"};
-                let ten = Math.floor(lastTwo / 10);
-                let unit = lastTwo % 10;
-                lastTwoText = tens[ten] + (unit > 0 ? " y " + esDays[unit] : "");
-            }
-            return "dos mil " + lastTwoText;
-        }
-        return year;
+        // Recycle the robust calculator translator to perfectly format ANY year (e.g., 1999, 2026, 1850)
+        return numberToSpanish(parseInt(year, 10));
     }
 
     function formatSpanishDate(dateStr) {
@@ -862,6 +863,196 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 3000);
             })
             .saveEODData(reportData);
+    });
+
+    // --- NUMBER TO SPANISH CALCULATOR LOGIC --- //
+    
+    function numberToSpanish(num) {
+        if (num === 0) return "cero";
+        
+        const units = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
+        const tens = ["", "diez", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+        const hundreds = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+        
+        function getGroup(n, isMilOrMillions = false) {
+            if (n === 100) return "cien";
+            let words = "";
+            if (n > 100) {
+                words += hundreds[Math.floor(n / 100)] + " ";
+                n %= 100;
+            }
+            if (n > 0) {
+                if (n <= 29) {
+                    let unitStr = units[n];
+                    if (isMilOrMillions) {
+                        if (n === 1) unitStr = "un";
+                        else if (n === 21) unitStr = "veintiún";
+                    }
+                    words += unitStr + " ";
+                } else {
+                    words += tens[Math.floor(n / 10)];
+                    if (n % 10 > 0) {
+                        let unitStr = units[n % 10];
+                        if (isMilOrMillions && (n % 10 === 1)) unitStr = "un";
+                        words += " y " + unitStr;
+                    }
+                    words += " ";
+                }
+            }
+            return words.trim();
+        }
+
+        let result = "";
+        let millions = Math.floor(num / 1000000);
+        let thousands = Math.floor((num % 1000000) / 1000);
+        let remainder = num % 1000;
+
+        if (millions > 0) {
+            if (millions === 1) result += "un millón ";
+            else result += getGroup(millions, true) + " millones ";
+        }
+        if (thousands > 0) {
+            if (thousands === 1) result += "mil ";
+            else result += getGroup(thousands, true) + " mil ";
+        }
+        if (remainder > 0) {
+            result += getGroup(remainder, false);
+        }
+
+        return result.trim().replace(/\s+/g, ' ');
+    }
+
+    let currentCalcValue = "";
+    
+    function updateCalcDisplay() {
+        const inputEl = document.getElementById('calc-input');
+        const textEl = document.getElementById('calc-spanish-text');
+        
+        if (currentCalcValue === "") {
+            inputEl.value = "";
+            textEl.innerText = "cero";
+            return;
+        }
+        
+        inputEl.value = parseInt(currentCalcValue, 10).toLocaleString('en-US'); // Adds the 1,000,000 commas automatically
+        textEl.innerText = numberToSpanish(parseInt(currentCalcValue, 10));
+    }
+    
+    document.querySelectorAll('.calc-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.getAttribute('data-action');
+            if (action === 'C') {
+                currentCalcValue = "";
+            } else if (action === 'DEL') {
+                currentCalcValue = currentCalcValue.slice(0, -1);
+            } else {
+                const digit = this.innerText.trim();
+                // Caps input at 999 million (9 digits) to prevent absurd integer sizes
+                if (currentCalcValue.length < 9) {
+                    if (currentCalcValue === "0") currentCalcValue = digit;
+                    else currentCalcValue += digit;
+                }
+            }
+            updateCalcDisplay();
+        });
+    });
+
+    // Map Physical Keyboard actions (Allows Numpad typing when not inside another form field)
+    document.addEventListener('keydown', function(e) {
+        if (document.getElementById('translator-mode').value !== 'number') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        if (e.key >= '0' && e.key <= '9') {
+            if (currentCalcValue.length < 9) {
+                if (currentCalcValue === "0") currentCalcValue = e.key;
+                else currentCalcValue += e.key;
+            }
+            updateCalcDisplay();
+        } else if (e.key === 'Backspace') {
+            currentCalcValue = currentCalcValue.slice(0, -1);
+            updateCalcDisplay();
+        } else if (e.key === 'Escape' || e.key.toLowerCase() === 'c') {
+            currentCalcValue = "";
+            updateCalcDisplay();
+        }
+    });
+
+    // Mode Switcher Logic
+    document.getElementById('translator-mode').addEventListener('change', function() {
+        const mode = this.value;
+        const textEl = document.getElementById('calc-spanish-text');
+        
+        // Hide all inputs
+        document.querySelectorAll('.trans-input-group').forEach(el => el.classList.add('hidden'));
+        // Show selected input
+        document.getElementById(`mode-${mode}-input`).classList.remove('hidden');
+        
+        // Hide/Show physical calculator keypad
+        const keypad = document.getElementById('calc-keypad');
+        if (mode === 'number') {
+            keypad.classList.remove('hidden');
+            textEl.innerText = currentCalcValue ? numberToSpanish(parseInt(currentCalcValue, 10)) : "cero";
+        } else {
+            keypad.classList.add('hidden');
+            textEl.innerText = "...";
+            document.getElementById('trans-date-input').value = "";
+            document.getElementById('trans-time-input').value = "";
+            document.getElementById('trans-datetime-input').value = "";
+        }
+    });
+
+    // Date/Time Listeners
+    document.getElementById('trans-date-input').addEventListener('input', function() {
+        const textEl = document.getElementById('calc-spanish-text');
+        textEl.innerText = this.value ? formatSpanishDate(this.value) : '...';
+    });
+
+    document.getElementById('trans-time-input').addEventListener('input', function() {
+        const textEl = document.getElementById('calc-spanish-text');
+        textEl.innerText = this.value ? formatSpanishTime(this.value) : '...';
+    });
+
+    document.getElementById('trans-datetime-input').addEventListener('input', function() {
+        const textEl = document.getElementById('calc-spanish-text');
+        if (!this.value) { 
+            textEl.innerText = '...'; 
+            return; 
+        }
+        const parts = this.value.split('T');
+        if (parts.length === 2) {
+            const dStr = formatSpanishDate(parts[0]);
+            const tStr = formatSpanishTime(parts[1]);
+            textEl.innerText = `${dStr} a ${tStr}`;
+        }
+    });
+
+    // Calculator Text-To-Speech Output
+    document.getElementById('calc-tts-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        let text = document.getElementById('calc-spanish-text').innerText;
+        
+        if ('speechSynthesis' in window && text !== '' && text !== '...') {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'es-MX';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.2; 
+            
+            if (synthVoices.length === 0) synthVoices = window.speechSynthesis.getVoices();
+            
+            const femaleVoice = synthVoices.find(v => 
+                v.lang.startsWith('es') && 
+                (v.name.toLowerCase().includes('female') || 
+                 v.name.includes('Monica') || v.name.includes('Paulina') || 
+                 v.name.includes('Sabina') || v.name.includes('Elena') || v.name.includes('Laura'))
+            );
+            
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+            }
+            
+            window.speechSynthesis.speak(utterance);
+        }
     });
 });
 </script>
