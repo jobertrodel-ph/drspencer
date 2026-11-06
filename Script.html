@@ -1,19 +1,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // Globally enforce a maximum of 4 digits for years on ALL date/datetime inputs via Event Capturing
-    document.addEventListener('input', function(e) {
-        if (e.target && (e.target.type === 'date' || e.target.type === 'datetime-local')) {
-            if (e.target.value) {
-                let parts = e.target.value.split('-');
-                if (parts[0] && parts[0].length > 4) {
-                    parts[0] = parts[0].slice(0, 4);
-                    e.target.value = parts.join('-');
-                }
-            }
-        }
-    }, true);
-
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     const stickyBanner = document.getElementById('sticky-banner');
@@ -186,20 +173,71 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    const apptTypeBtns = document.querySelectorAll('.appt-type-btn');
-    apptTypeBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const container = this.closest('.call-answered-question');
-            const btns = container.querySelectorAll('.appt-type-btn');
-            btns.forEach(b => b.classList.remove('active-ans'));
-            this.classList.add('active-ans');
-            
-            const valEn = this.getAttribute('data-en');
-            const valEs = this.getAttribute('data-es');
-            document.querySelectorAll('.ph-appt-type-en').forEach(el => el.textContent = valEn);
-            document.querySelectorAll('.ph-appt-type-es').forEach(el => el.textContent = valEs);
-        });
+    // --- Complex 'Schedule an Appointment' Dynamic Placeholder & Review Logic ---
+    document.getElementById('script-schedule').addEventListener('input', updateSchedulePlaceholders);
+    document.getElementById('script-schedule').addEventListener('click', function(e) {
+        if (e.target.classList.contains('sch-clinic-btn')) {
+            const container = e.target.closest('.ans-btn-group');
+            container.querySelectorAll('.sch-clinic-btn').forEach(b => b.classList.remove('active-ans'));
+            e.target.classList.add('active-ans');
+            updateSchedulePlaceholders();
+        }
     });
+
+    function updateSchedulePlaceholders() {
+        // Update Surgery text
+        let sd = document.getElementById('sch-surg-date').value;
+        document.querySelectorAll('.ph-surg-date-en, .rev-surg-en').forEach(el => el.textContent = sd ? formatDate(sd) : '[Date]');
+        document.querySelectorAll('.ph-surg-date-es, .rev-surg-es').forEach(el => el.textContent = sd ? formatSpanishDate(sd) : '[Fecha]');
+
+        // Update Pre-Op text
+        let pd = document.getElementById('sch-preop-date').value;
+        let pt = document.getElementById('sch-preop-time').value;
+        let pc = document.querySelector('.sch-clinic-btn[data-target="preop"].active-ans');
+        let ploc = pc ? pc.getAttribute('data-val') : '[Location/Ubicación]';
+        
+        document.querySelectorAll('.ph-preop-date-en').forEach(el => el.textContent = pd ? formatDate(pd) : '[Date]');
+        document.querySelectorAll('.ph-preop-time-en').forEach(el => el.textContent = pt ? formatTime(pt) : '[Time]');
+        document.querySelectorAll('.ph-preop-date-es').forEach(el => el.textContent = pd ? formatSpanishDate(pd) : '[Fecha]');
+        document.querySelectorAll('.ph-preop-time-es').forEach(el => el.textContent = pt ? formatSpanishTime(pt) : '[Hora]');
+        
+        document.querySelectorAll('.rev-preop-en').forEach(el => el.textContent = `${pd ? formatDate(pd) : '[Date]'} at ${pt ? formatTime(pt) : '[Time]'} – ${ploc}`);
+        document.querySelectorAll('.rev-preop-es').forEach(el => el.textContent = `${pd ? formatSpanishDate(pd) : '[Fecha]'} a las ${pt ? formatSpanishTime(pt) : '[Hora]'} – ${ploc}`);
+
+        // Update Post-op count dependencies
+        let count = parseInt(document.getElementById('sch-postop-count').value) || 0;
+        document.querySelectorAll('.ph-postop-count').forEach(el => el.textContent = count > 0 ? count : '[Number/Número]');
+
+        // Dynamically Show/Hide Post-op blocks and their Review lines based on Dropdown
+        for (let i = 1; i <= 6; i++) {
+            let sec = document.getElementById(`postop-${i}-sec`);
+            let revLines = document.querySelectorAll(`.rev-po${i}-line`);
+            
+            if (i <= count) {
+                if (sec) sec.classList.remove('hidden');
+                revLines.forEach(l => l.classList.remove('hidden'));
+            } else {
+                if (sec) sec.classList.add('hidden');
+                revLines.forEach(l => l.classList.add('hidden'));
+            }
+
+            // Sync Text/Review blocks for active Post-Ops
+            let d = document.getElementById(`sch-po${i}-date`);
+            let t = document.getElementById(`sch-po${i}-time`);
+            let c = document.querySelector(`.sch-clinic-btn[data-target="po${i}"].active-ans`);
+            let loc = c ? c.getAttribute('data-val') : '[Location/Ubicación]';
+
+            if (d && t) {
+                document.querySelectorAll(`.ph-po${i}-date-en`).forEach(el => el.textContent = d.value ? formatDate(d.value) : '[Date]');
+                document.querySelectorAll(`.ph-po${i}-time-en`).forEach(el => el.textContent = t.value ? formatTime(t.value) : '[Time]');
+                document.querySelectorAll(`.ph-po${i}-date-es`).forEach(el => el.textContent = d.value ? formatSpanishDate(d.value) : '[Fecha]');
+                document.querySelectorAll(`.ph-po${i}-time-es`).forEach(el => el.textContent = t.value ? formatSpanishTime(t.value) : '[Hora]');
+
+                document.querySelectorAll(`.rev-po${i}-en`).forEach(el => el.textContent = `${d.value ? formatDate(d.value) : '[Date]'} at ${t.value ? formatTime(t.value) : '[Time]'} – ${loc}`);
+                document.querySelectorAll(`.rev-po${i}-es`).forEach(el => el.textContent = `${d.value ? formatSpanishDate(d.value) : '[Fecha]'} a las ${t.value ? formatSpanishTime(t.value) : '[Hora]'} – ${loc}`);
+            }
+        }
+    }
 
     remarkBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -255,21 +293,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 else language = langVal;
             }
 
-            const activeClinic = document.querySelector('.clinic-btn.active-ans');
-            const clinic = activeClinic ? activeClinic.getAttribute('data-val') : "N/A";
+            let clinic = "N/A";
+            let rawNewDate = "";
+            
+            // Route payload extraction dynamically based on which UI is actually active
+            if (callType === 'script-schedule') {
+                const preopClinic = document.querySelector('.sch-clinic-btn[data-target="preop"].active-ans');
+                clinic = preopClinic ? preopClinic.getAttribute('data-val') : "N/A";
+                // System prioritizes grabbing the Surgery Date for the Google Sheet, falls back to Preop Date if missing
+                rawNewDate = document.getElementById('sch-surg-date').value || document.getElementById('sch-preop-date').value;
+            } else {
+                const sharedClinic = document.querySelector('#grp-clinic .clinic-btn.active-ans');
+                if (sharedClinic) clinic = sharedClinic.getAttribute('data-val');
+                const dateEl = document.getElementById('input-date');
+                if (dateEl) rawNewDate = dateEl.value;
+            }
 
             // Grab Raw Date Strings and push them through the existing MM/DD/YYYY HTML formatter
-            const rawNewDate = document.getElementById('input-date').value;
             const newDate = rawNewDate ? formatDate(rawNewDate) : "N/A";
             
             const rawOldDate = document.getElementById('input-old-date').value;
             const oldDate = rawOldDate ? formatDate(rawOldDate) : "N/A";
-
             const reason = document.getElementById('input-reason').value.trim() || "N/A";
             const labName = document.getElementById('input-lab').value.trim() || "N/A";
 
-            const activeApptType = document.querySelector('.appt-type-btn.active-ans');
-            const apptType = activeApptType ? activeApptType.innerText : "N/A";
+            // Appointment Type selector was removed. Default to a standard layout descriptor to populate the Sheet's column natively.
+            const apptType = (callType === 'script-schedule') ? "Full Schedule Workflow" : "N/A";
 
             const payload = {
                 callType: callType,
@@ -305,10 +354,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.querySelectorAll('.remark-btn').forEach(b => b.classList.remove('active-remark'));
                         document.getElementById('remarks-output').value = '';
                         
-                        // Visually clear Appointment Type toggles
-                        document.querySelectorAll('.appt-type-btn').forEach(b => b.classList.remove('active-ans'));
-                        document.querySelectorAll('.ph-appt-type-en').forEach(el => el.textContent = '[pre-op / surgery / post-op]');
-                        document.querySelectorAll('.ph-appt-type-es').forEach(el => el.textContent = '[preoperatoria / de cirugía / postoperatoria]');
+                        // Safely wipe the comprehensive Schedule script layout natively
+
+                        if (callType === 'script-schedule') {
+                            document.querySelectorAll('#script-schedule input, #script-schedule select').forEach(el => el.value = '');
+                            document.querySelectorAll('.sch-clinic-btn').forEach(b => b.classList.remove('active-ans'));
+                            if (typeof updateSchedulePlaceholders === 'function') updateSchedulePlaceholders();
+                        }
                     }, 2500);
                 })
                 .withFailureHandler(function(error) {
@@ -423,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const esMins = ["en punto", "y uno", "y dos", "y tres", "y cuatro", "y cinco", "y seis", "y siete", "y ocho", "y nueve", "y diez", "y once", "y doce", "y trece", "y catorce", "y quince", "y dieciséis", "y diecisiete", "y dieciocho", "y diecinueve", "y veinte", "y veintiuno", "y veintidós", "y veintitrés", "y veinticuatro", "y veinticinco", "y veintiséis", "y veintisiete", "y veintiocho", "y veintinueve", "y treinta", "y treinta y uno", "y treinta y dos", "y treinta y tres", "y treinta y cuatro", "y treinta y cinco", "y treinta y seis", "y treinta y siete", "y treinta y ocho", "y treinta y nueve", "y cuarenta", "y cuarenta y uno", "y cuarenta y dos", "y cuarenta y tres", "y cuarenta y cuatro", "y cuarenta y cinco", "y cuarenta y seis", "y cuarenta y siete", "y cuarenta y ocho", "y cuarenta y nueve", "y cincuenta", "y cincuenta y uno", "y cincuenta y dos", "y cincuenta y tres", "y cincuenta y cuatro", "y cincuenta y cinco", "y cincuenta y seis", "y cincuenta y siete", "y cincuenta y ocho", "y cincuenta y nueve"];
 
     function getYearEs(year) {
-        // Recycle the robust calculator translator to perfectly format ANY year (e.g., 1999, 2026, 1850)
+        // Recycle the robust calculator translator to perfectly format ANY year (e.g., 1996, 2026, 1850)
         return numberToSpanish(parseInt(year, 10));
     }
 

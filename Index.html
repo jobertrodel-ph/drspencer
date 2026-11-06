@@ -35,6 +35,7 @@
                         <button class="call-btn" data-script="script-schedule">Schedule an Appointment</button>
                         <button class="call-btn" data-script="script-change">Change Appointment Date</button>
                         <button class="call-btn" data-script="script-followup">Follow up missing laboratory result</button>
+                        <button class="call-btn" data-script="script-preop-labs">Preoperative Lab Orders & Facility Confirmation</button>
                     </div>
                 </div>
 
@@ -91,55 +92,219 @@
                             </div>
                         </div>
 
-                        <div class="script-block conversational-part">
-                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 1. ¡Hola, buenos días! Mi nombre es Joyce y le llamo del Departamento de Ortopedia del Dr. Spencer. ¿Podría hablar con <span class="ph-patient">[Nombre del paciente]</span>, por favor?</p>
-                            <p class="english">1. Hello, good morning! My name is Joyce, and I’m calling from Dr. Spencer’s Orthopedic Department. May I speak with <span class="ph-patient">[Patient’s Name]</span>, please?</p>
-                        </div>
-
-                        <div class="call-answered-question conversational-part" style="background-color: #fdf2e9; border-color: #f5cba7; margin: 15px;">
-                            <span class="answered-label">What kind of appointment?</span>
-                            <div class="ans-btn-group">
-                                <button class="ans-btn appt-type-btn" data-en="pre-op" data-es="preoperatoria">Pre-Op</button>
-                                <button class="ans-btn appt-type-btn" data-en="surgery" data-es="de cirugía">Surgery</button>
-                                <button class="ans-btn appt-type-btn" data-en="post-op" data-es="postoperatoria">Post-Op</button>
+                        <div class="conversational-part">
+                            
+                            <!-- 1. Opening and Patient Verification -->
+                            <div class="script-block">
+                                <h3 class="section-header">1. Opening and Patient Verification</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> Hola, le habla Joyce de la oficina del Dr. Spencer. Le llamo para ayudarle a programar su cirugía y sus citas de seguimiento. ¿Puedo hablar con <span class="ph-patient">[Nombre del paciente]</span>, por favor? ¡Muchas gracias!</p>
+                                <p class="english">Hi, this is Joyce calling from Dr. Spencer's office. I'm calling to help you schedule your surgery and follow-up appointments. May I speak with <span class="ph-patient">[Patient's Name]</span>, please? Thank you!</p>
                             </div>
-                        </div>
+                            
+                            <!-- 2. Scheduling the Surgery -->
+                            <div class="script-block">
+                                <h3 class="section-header">2. Scheduling the Surgery</h3>
+                                <div class="form-grid" style="margin-bottom: 10px;">
+                                    <div class="input-group">
+                                        <label>Surgery Date <span style="font-weight: normal; color: #7f8c8d; font-style: italic;">(Check system for an open schedule)</span></label>
+                                        <input type="date" id="sch-surg-date" class="trans-date-time-box" style="padding: 10px;">
+                                    </div>
+                                </div>
+                                <p class="spanish"><button class="tts-btn">🔊</button> 2. Empecemos con la fecha de su cirugía. Tenemos disponibilidad para el día <span class="ph-surg-date-es">[Fecha]</span>. ¿Le queda bien ese día?</p>
+                                <p class="english">2. Let's start with your surgery date. We currently have an opening on <span class="ph-surg-date-en">[Date]</span>. Would that work for you?</p>
+                                <br>
+                                <p class="spanish"><strong>SI:</strong> <button class="tts-btn">🔊</button> ¡Perfecto! Voy a reservar esa fecha para usted. El centro quirúrgico se comunicará con usted para informarle la hora de llegada y registro.</p>
+                                <p class="english"><strong>IF YES:</strong> Perfect! I'll reserve that date for you. The surgery facility will contact you with your arrival and check-in time.</p>
+                            </div>
 
-                        <div class="script-block conversational-part">
-                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 2. Le llamo para programar su cita <span class="ph-appt-type-es">[preoperatoria / de cirugía / postoperatoria]</span> con el Dr. Spencer. ¿Podría indicarme en cuál de nuestras clínicas prefiere su cita: Palm Desert o La Quinta?</p>
-                            <p class="english">2. I’m calling to schedule your <span class="ph-appt-type-en">[pre-op / surgery / post-op]</span> appointment with Dr. Spencer. May I ask which clinic you prefer: Palm Desert or La Quinta?</p>
-                        </div>
-                        <div class="field-slot" data-field="grp-clinic"></div>
-                        <div class="script-block conversational-part">
-                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 3. ¡Muchas gracias! ¿Qué día y a qué hora le vendría mejor?</p>
-                            <p class="english">3. Thank you! May I know what day and time would work best for you?</p>
-                        </div>
-                        <div class="form-grid">
-                            <div class="field-slot" data-field="grp-date"></div>
-                            <div class="field-slot" data-field="grp-time"></div>
-                        </div>
-                        <div class="script-block conversational-part">
-                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 4. Tenemos una cita disponible el <span class="ph-date-es">[Fecha]</span> a <span class="ph-time-es">[Hora]</span> en nuestra clínica de <span class="ph-clinic">[Palm Desert/La Quinta]</span>. ¿Le parece bien?</p>
-                            <p class="english">4. We have an available appointment on <span class="ph-date-en">[Date]</span> at <span class="ph-time-en">[Time]</span> at our <span class="ph-clinic">[Palm Desert/La Quinta]</span> clinic. Would that work for you?</p>
-                        </div>
-                        <div class="script-block conversational-part">
-                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 5. ¡Perfecto! Su cita ha quedado programada para el <span class="ph-date-es">[Fecha]</span> a <span class="ph-time-es">[Hora]</span> en nuestra clínica de <span class="ph-clinic">[Palm Desert/La Quinta]</span>.</p>
-                            <p class="english">5. Perfect! Your appointment is scheduled for <span class="ph-date-en">[Date]</span> at <span class="ph-time-en">[Time]</span> at our <span class="ph-clinic">[Palm Desert/La Quinta]</span> clinic.</p>
-                        </div>
-                        <div class="script-block conversational-part">
-                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 6. Muchas gracias por su tiempo. Si tiene alguna pregunta o necesita hacer algún cambio, no dude en comunicarse con nuestro consultorio.</p>
-                            <p class="english">6. Thank you for your time. If you have any questions or need to make any changes, please feel free to contact our office.</p>
-                        </div>
-                        <div class="script-block conversational-part">
-                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> 7. ¡Que tenga un excelente día!</p>
-                            <p class="english">7. Have a great day!</p>
+                            <!-- 3. Scheduling the Preoperative Appointment -->
+                            <div class="script-block">
+                                <h3 class="section-header">3. Scheduling the Preoperative Appointment</h3>
+                                <div class="form-grid" style="margin-bottom: 10px; align-items: end;">
+                                    <div class="input-group">
+                                        <label>Pre-Op Date</label>
+                                        <input type="date" id="sch-preop-date" class="trans-date-time-box" style="padding: 10px;">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Pre-Op Time</label>
+                                        <input type="time" id="sch-preop-time" class="trans-date-time-box" style="padding: 10px;">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Pre-Op Clinic</label>
+                                        <div class="ans-btn-group" style="gap: 5px;">
+                                            <button class="ans-btn clinic-btn sch-clinic-btn" data-target="preop" data-val="Palm Desert" style="padding: 8px 10px;">Palm Desert</button>
+                                            <button class="ans-btn clinic-btn sch-clinic-btn" data-target="preop" data-val="La Quinta" style="padding: 8px 10px;">La Quinta</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="spanish"><button class="tts-btn">🔊</button> 3. Antes de la cirugía, necesitará una cita preoperatoria con el Dr. Spencer para asegurarnos de que todo esté listo. Por favor, complete sus análisis de laboratorio y los exámenes necesarios antes de esta cita. ¿Prefiere nuestra oficina de La Quinta o Palm Desert? Tenemos disponibilidad el <span class="ph-preop-date-es">[Fecha]</span> a las <span class="ph-preop-time-es">[Hora]</span>. ¿Le queda bien?</p>
+                                <p class="english">3. Before surgery, you'll need a pre-op appointment with Dr. Spencer to make sure you're ready for surgery. Please complete your required labs and testing before this appointment. Would you prefer our La Quinta or Palm Desert office? We have an opening on <span class="ph-preop-date-en">[Date]</span> at <span class="ph-preop-time-en">[Time]</span>. Would that work for you?</p>
+                                <br>
+                                <p class="spanish"><strong>CONFIRMACIÓN:</strong> <button class="tts-btn">🔊</button> ¡Perfecto! Su cita preoperatoria ya está programada.</p>
+                                <p class="english"><strong>CONFIRMATION:</strong> Perfect! Your pre-op appointment is scheduled.</p>
+                            </div>
+
+                            <!-- 4. Scheduling the Postoperative Appointments -->
+                            <div class="script-block">
+                                <h3 class="section-header">4. Scheduling the Postoperative Appointments</h3>
+                                <div class="input-group" style="margin-bottom: 15px; max-width: 300px;">
+                                    <label>Required Post-Op Visits</label>
+                                    <select id="sch-postop-count" class="trans-date-time-box" style="padding: 10px; cursor: pointer;">
+                                        <option value="0">Select number of visits...</option>
+                                        <option value="1">1 Visit</option>
+                                        <option value="2">2 Visits</option>
+                                        <option value="3">3 Visits</option>
+                                        <option value="4">4 Visits</option>
+                                        <option value="5">5 Visits</option>
+                                        <option value="6">6 Visits</option>
+                                    </select>
+                                </div>
+                                
+                                <p class="spanish"><button class="tts-btn">🔊</button> 4. Según las indicaciones del doctor, necesitará <span class="ph-postop-count">[Número]</span> citas postoperatorias después de la cirugía.</p>
+                                <p class="english">4. According to the doctor's orders, you will need <span class="ph-postop-count">[Number]</span> post-op appointments after surgery.</p>
+                                
+                                <!-- Post-Op 1 -->
+                                <div id="postop-1-sec" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 6px;">
+                                    <div class="form-grid" style="margin-bottom: 10px; align-items: end;">
+                                        <div class="input-group"><label>1st Post-Op Date</label><input type="date" id="sch-po1-date" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>1st Post-Op Time</label><input type="time" id="sch-po1-time" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>1st Post-Op Clinic</label>
+                                            <div class="ans-btn-group" style="gap: 5px;">
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po1" data-val="Palm Desert" style="padding: 8px 10px;">Palm Desert</button>
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po1" data-val="La Quinta" style="padding: 8px 10px;">La Quinta</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="spanish"><button class="tts-btn">🔊</button> Vamos a programar su primera cita postoperatoria para que el doctor pueda revisar su recuperación. Tenemos disponibilidad el <span class="ph-po1-date-es">[Fecha]</span> a las <span class="ph-po1-time-es">[Hora]</span>. ¿Le queda bien? ¿Prefiere La Quinta o Palm Desert?</p>
+                                    <p class="english">Let's schedule your first post-op appointment so the doctor can check your recovery. We have <span class="ph-po1-date-en">[Date]</span> at <span class="ph-po1-time-en">[Time]</span> available. Would that work for you? Would you prefer La Quinta or Palm Desert?</p>
+                                </div>
+
+                                <!-- Post-Op 2 -->
+                                <div id="postop-2-sec" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 6px;">
+                                    <div class="form-grid" style="margin-bottom: 10px; align-items: end;">
+                                        <div class="input-group"><label>2nd Post-Op Date</label><input type="date" id="sch-po2-date" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>2nd Post-Op Time</label><input type="time" id="sch-po2-time" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>2nd Post-Op Clinic</label>
+                                            <div class="ans-btn-group" style="gap: 5px;">
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po2" data-val="Palm Desert" style="padding: 8px 10px;">Palm Desert</button>
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po2" data-val="La Quinta" style="padding: 8px 10px;">La Quinta</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="spanish"><button class="tts-btn">🔊</button> Su segunda cita postoperatoria será aproximadamente de 2 a 3 semanas después de la cirugía. Tenemos disponibilidad el <span class="ph-po2-date-es">[Fecha]</span> a las <span class="ph-po2-time-es">[Hora]</span>. ¿Le queda bien?</p>
+                                    <p class="english">Your second post-op appointment will be around 2 to 3 weeks after surgery. We have <span class="ph-po2-date-en">[Date]</span> at <span class="ph-po2-time-en">[Time]</span> available. Would that work for you?</p>
+                                </div>
+
+                                <!-- Post-Op 3 -->
+                                <div id="postop-3-sec" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 6px;">
+                                    <div class="form-grid" style="margin-bottom: 10px; align-items: end;">
+                                        <div class="input-group"><label>3rd Post-Op Date</label><input type="date" id="sch-po3-date" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>3rd Post-Op Time</label><input type="time" id="sch-po3-time" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>3rd Post-Op Clinic</label>
+                                            <div class="ans-btn-group" style="gap: 5px;">
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po3" data-val="Palm Desert" style="padding: 8px 10px;">Palm Desert</button>
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po3" data-val="La Quinta" style="padding: 8px 10px;">La Quinta</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="spanish"><button class="tts-btn">🔊</button> Su tercera cita postoperatoria será aproximadamente de 6 a 8 semanas después de la cirugía. Tenemos disponibilidad el <span class="ph-po3-date-es">[Fecha]</span> a las <span class="ph-po3-time-es">[Hora]</span>. ¿Le queda bien?</p>
+                                    <p class="english">Your third post-op appointment will usually be around 6 to 8 weeks after surgery. We have <span class="ph-po3-date-en">[Date]</span> at <span class="ph-po3-time-en">[Time]</span> available. Would that work for you?</p>
+                                </div>
+
+                                <!-- Post-Op 4 -->
+                                <div id="postop-4-sec" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 6px;">
+                                    <div class="form-grid" style="margin-bottom: 10px; align-items: end;">
+                                        <div class="input-group"><label>4th Post-Op Date</label><input type="date" id="sch-po4-date" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>4th Post-Op Time</label><input type="time" id="sch-po4-time" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>4th Post-Op Clinic</label>
+                                            <div class="ans-btn-group" style="gap: 5px;">
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po4" data-val="Palm Desert" style="padding: 8px 10px;">Palm Desert</button>
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po4" data-val="La Quinta" style="padding: 8px 10px;">La Quinta</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="spanish"><button class="tts-btn">🔊</button> Ahora vamos a programar su cuarta cita postoperatoria. Tenemos disponibilidad el <span class="ph-po4-date-es">[Fecha]</span> a las <span class="ph-po4-time-es">[Hora]</span>. ¿Le queda bien?</p>
+                                    <p class="english">Next, let's schedule your Fourth post-op appointment. We have <span class="ph-po4-date-en">[Date]</span> at <span class="ph-po4-time-en">[Time]</span> available. Would that work for you?</p>
+                                </div>
+
+                                <!-- Post-Op 5 -->
+                                <div id="postop-5-sec" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 6px;">
+                                    <div class="form-grid" style="margin-bottom: 10px; align-items: end;">
+                                        <div class="input-group"><label>5th Post-Op Date</label><input type="date" id="sch-po5-date" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>5th Post-Op Time</label><input type="time" id="sch-po5-time" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>5th Post-Op Clinic</label>
+                                            <div class="ans-btn-group" style="gap: 5px;">
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po5" data-val="Palm Desert" style="padding: 8px 10px;">Palm Desert</button>
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po5" data-val="La Quinta" style="padding: 8px 10px;">La Quinta</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="spanish"><button class="tts-btn">🔊</button> Ahora vamos a programar su quinta cita postoperatoria. Tenemos disponibilidad el <span class="ph-po5-date-es">[Fecha]</span> a las <span class="ph-po5-time-es">[Hora]</span>. ¿Le queda bien?</p>
+                                    <p class="english">Next, let's schedule your Fifth post-op appointment. We have <span class="ph-po5-date-en">[Date]</span> at <span class="ph-po5-time-en">[Time]</span> available. Would that work for you?</p>
+                                </div>
+
+                                <!-- Post-Op 6 -->
+                                <div id="postop-6-sec" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 6px;">
+                                    <div class="form-grid" style="margin-bottom: 10px; align-items: end;">
+                                        <div class="input-group"><label>6th Post-Op Date</label><input type="date" id="sch-po6-date" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>6th Post-Op Time</label><input type="time" id="sch-po6-time" class="trans-date-time-box"></div>
+                                        <div class="input-group"><label>6th Post-Op Clinic</label>
+                                            <div class="ans-btn-group" style="gap: 5px;">
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po6" data-val="Palm Desert" style="padding: 8px 10px;">Palm Desert</button>
+                                                <button class="ans-btn clinic-btn sch-clinic-btn" data-target="po6" data-val="La Quinta" style="padding: 8px 10px;">La Quinta</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="spanish"><button class="tts-btn">🔊</button> Ahora vamos a programar su sexta cita postoperatoria. Tenemos disponibilidad el <span class="ph-po6-date-es">[Fecha]</span> a las <span class="ph-po6-time-es">[Hora]</span>. ¿Le queda bien?</p>
+                                    <p class="english">Next, let's schedule your Sixth post-op appointment. We have <span class="ph-po6-date-en">[Date]</span> at <span class="ph-po6-time-en">[Time]</span> available. Would that work for you?</p>
+                                </div>
+                            </div>
+
+                            <!-- 5. Reviewing All Appointments -->
+                            <div class="script-block">
+                                <h3 class="section-header">5. Reviewing All Appointments</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> Permítame repasar rápidamente todas sus citas programadas:</p>
+                                <p class="english">Let me quickly review all your scheduled appointments:</p>
+                                
+                                <div style="background: #e8f4fd; padding: 15px; border-radius: 6px; margin: 15px 0; font-family: monospace; font-size: 14px; color: #2c3e50; border: 1px solid #bce0fd; line-height: 1.6;">
+                                    <div class="english">
+                                        <strong>Pre-op:</strong> <span class="rev-preop-en">[Date] at [Time] – [Location]</span><br>
+                                        <strong>Surgery:</strong> <span class="rev-surg-en">[Date]</span><br>
+                                        <span class="rev-po1-line hidden"><strong>First post-op:</strong> <span class="rev-po1-en">[Date] at [Time] – [Location]</span><br></span>
+                                        <span class="rev-po2-line hidden"><strong>Second post-op:</strong> <span class="rev-po2-en">[Date] at [Time] – [Location]</span><br></span>
+                                        <span class="rev-po3-line hidden"><strong>Third post-op:</strong> <span class="rev-po3-en">[Date] at [Time] – [Location]</span><br></span>
+                                        <span class="rev-po4-line hidden"><strong>Fourth post-op:</strong> <span class="rev-po4-en">[Date] at [Time] – [Location]</span><br></span>
+                                        <span class="rev-po5-line hidden"><strong>Fifth post-op:</strong> <span class="rev-po5-en">[Date] at [Time] – [Location]</span><br></span>
+                                        <span class="rev-po6-line hidden"><strong>Sixth post-op:</strong> <span class="rev-po6-en">[Date] at [Time] – [Location]</span><br></span>
+                                    </div>
+                                    <div class="spanish" style="margin-top: 15px; border-top: 1px dashed #90caf9; padding-top: 15px;">
+                                        <strong>Preoperatoria:</strong> <span class="rev-preop-es">[Fecha] a las [Hora] – [Ubicación]</span><br>
+                                        <strong>Cirugía:</strong> <span class="rev-surg-es">[Fecha]</span><br>
+                                        <span class="rev-po1-line hidden"><strong>Primera cita postoperatoria:</strong> <span class="rev-po1-es">[Fecha] a las [Hora] – [Ubicación]</span><br></span>
+                                        <span class="rev-po2-line hidden"><strong>Segunda cita postoperatoria:</strong> <span class="rev-po2-es">[Fecha] a las [Hora] – [Ubicación]</span><br></span>
+                                        <span class="rev-po3-line hidden"><strong>Tercera cita postoperatoria:</strong> <span class="rev-po3-es">[Fecha] a las [Hora] – [Ubicación]</span><br></span>
+                                        <span class="rev-po4-line hidden"><strong>Cuarta cita postoperatoria:</strong> <span class="rev-po4-es">[Fecha] a las [Hora] – [Ubicación]</span><br></span>
+                                        <span class="rev-po5-line hidden"><strong>Quinta cita postoperatoria:</strong> <span class="rev-po5-es">[Fecha] a las [Hora] – [Ubicación]</span><br></span>
+                                        <span class="rev-po6-line hidden"><strong>Sexta cita postoperatoria:</strong> <span class="rev-po6-es">[Fecha] a las [Hora] – [Ubicación]</span><br></span>
+                                    </div>
+                                </div>
+
+                                <p class="spanish"><button class="tts-btn">🔊</button> Le recuerdo que debe completar todos sus análisis y exámenes antes de su cita preoperatoria. ¿Tiene alguna pregunta?</p>
+                                <p class="english">Just a reminder to complete all your required labs and testing before your pre-op appointment. Do you have any questions?</p>
+                            </div>
+
+                            <!-- 6. Closing the Call -->
+                            <div class="script-block">
+                                <h3 class="section-header">6. Closing the Call</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> ¡Perfecto! Ya está todo listo. Todas sus citas están programadas. Si tiene alguna pregunta o necesita ayuda, no dude en llamarnos. ¡Muchas gracias por su tiempo! Le habló Joyce de la oficina del Dr. Spencer. ¡Que tenga un excelente día!</p>
+                                <p class="english">Perfect! You're all set. All your appointments have been scheduled. If you have any questions or need assistance, please feel free to call us back. Thank you for your time! This is Joyce from Dr. Spencer's office. Have a wonderful day!</p>
+                            </div>
                         </div>
 
                         <div class="script-block voicemail-part hidden">
                             <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> Hola, este es un mensaje para <span class="ph-patient">[Nombre del paciente]</span> del Departamento de Ortopedia del Dr. Spencer. Le llamamos para programar su cita en nuestra clínica de <span class="ph-clinic">[Palm Desert/La Quinta]</span>. Por favor, devuélvanos la llamada cuando le sea posible. ¡Gracias y que tenga un excelente día!</p>
                             <p class="english">Hello, this is a message for <span class="ph-patient">[Patient’s Name]</span> from Dr. Spencer’s Orthopedic Department. We are calling to schedule your appointment at our <span class="ph-clinic">[Palm Desert/La Quinta]</span> clinic. Please call us back at your earliest convenience. Thank you, and have a great day!</p>
                         </div>
-                        
                     </div>
 
                     <div id="script-change" class="script-content hidden">
@@ -245,6 +410,72 @@
                         </div>
                     </div>
 
+                    <div id="script-preop-labs" class="script-content hidden">
+                        <div class="field-slot" data-field="grp-patient"></div>
+                        
+                        <div class="call-answered-question">
+                            <span class="answered-label">Did someone answer the call?</span>
+                            <div class="ans-btn-group">
+                                <button class="ans-btn ans-yes active-ans" data-val="yes">Yes</button>
+                                <button class="ans-btn ans-no" data-val="no">No (Voicemail)</button>
+                            </div>
+                        </div>
+
+                        <div class="conversational-part">
+                            
+                            <!-- 1. Opening and Verification -->
+                            <div class="script-block">
+                                <h3 class="section-header">1. Opening and Verification</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> Hola, le habla Joyce de la oficina del Dr. Spencer. Le llamo para confirmar dónde se realizará sus análisis de laboratorio preoperatorios y exámenes. ¿Puedo hablar con <span class="ph-patient">[Nombre del paciente]</span>, por favor? ¡Muchas gracias!</p>
+                                <p class="english">Hi, this is Joyce calling from Dr. Spencer's office. I'm calling to confirm where you'll be completing your preoperative lab work and testing. May I speak with <span class="ph-patient">[Patient's Name]</span>, please? Thank you!</p>
+                            </div>
+                            
+                            <!-- 2. Confirming Blood Work -->
+                            <div class="script-block">
+                                <h3 class="section-header">2. Confirming Blood Work</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> Primero, con respecto a sus análisis de sangre, ¿dónde y cuándo planea realizárselos?</p>
+                                <p class="english">First, regarding your blood work, where and when do you plan to have it done?</p>
+                                <input type="text" class="trans-date-time-box" placeholder="Type blood work facility & date here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                            </div>
+
+                            <!-- 3. Confirming X-ray -->
+                            <div class="script-block">
+                                <h3 class="section-header">3. Confirming X-ray</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> ¿Qué hay de sus radiografías (rayos X)? ¿Dónde y cuándo planea realizárselas?</p>
+                                <p class="english">How about your X-ray? Where and when are you planning to complete it?</p>
+                                <input type="text" class="trans-date-time-box" placeholder="Type X-ray facility & date here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                            </div>
+
+                            <!-- 4. Confirming EKG -->
+                            <div class="script-block">
+                                <h3 class="section-header">4. Confirming EKG</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> Y para su electrocardiograma, ¿dónde y cuándo se lo realizará?</p>
+                                <p class="english">And for your EKG, where and when will you be having that done?</p>
+                                <input type="text" class="trans-date-time-box" placeholder="Type EKG facility & date here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                            </div>
+
+                            <!-- 5. Confirming Primary Care Physician (PCP) -->
+                            <div class="script-block">
+                                <h3 class="section-header">5. Confirming Primary Care Physician (PCP)</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> ¿Podría también darme el nombre de su médico de atención primaria y la ubicación de su consultorio?</p>
+                                <p class="english">May I also have the name of your primary care physician and the office location?</p>
+                                <input type="text" class="trans-date-time-box" placeholder="Type PCP name & location here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                            </div>
+
+                            <!-- 6. Closing and Confirmation -->
+                            <div class="script-block">
+                                <h3 class="section-header">6. Closing and Confirmation</h3>
+                                <p class="spanish"><button class="tts-btn">🔊</button> ¡Perfecto! Gracias por proporcionar esta información. Enviaremos las órdenes de laboratorio y exámenes a las instalaciones que nos indicó, junto con la solicitud de autorización médica a su médico de atención primaria. ¡Muchas gracias por su tiempo! ¡Que tenga un excelente día!</p>
+                                <p class="english">Perfect! Thank you for providing that information. We'll send your lab and testing orders to the facilities you provided, along with the medical clearance request to your primary care physician. Thank you for your time! Have a wonderful day!</p>
+                            </div>
+                        </div>
+
+                        <div class="script-block voicemail-part hidden">
+                            <p class="spanish"><button class="tts-btn" title="Listen to pronunciation">🔊</button> Hola, este es un mensaje para <span class="ph-patient">[Nombre del paciente]</span> de la oficina del Dr. Spencer. Le llamamos para confirmar dónde se realizará sus análisis y exámenes preoperatorios. Por favor, devuélvanos la llamada cuando le sea posible. ¡Gracias y que tenga un excelente día!</p>
+                            <p class="english">Hello, this is a message for <span class="ph-patient">[Patient’s Name]</span> from Dr. Spencer’s office. We are calling to confirm where you will be completing your preoperative lab work and testing. Please call us back at your earliest convenience. Thank you, and have a great day!</p>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Global Remarks Section -->
@@ -275,6 +506,9 @@
                             <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-change" data-val="Appointment date successfully changed">Appointment date successfully changed</button>
                             <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-followup" data-val="Patient acknowledged">Patient acknowledged</button>
                             <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-followup" data-val="Patient asked for more time">Patient asked for more time</button>
+                            
+                            <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-preop-labs" data-val="Facilities and PCP confirmed">Facilities and PCP confirmed</button>
+                            <button class="ans-btn remark-btn type-specific-remark hidden" data-show-for="script-preop-labs" data-val="Missing some facility details">Missing some facility details</button>
                             
                             <!-- Global Remarks -->
                             <button class="ans-btn remark-btn" data-val="Call got disconnected. Called back, no answer.">Call got disconnected. Called back, no answer.</button>

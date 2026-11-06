@@ -66,6 +66,9 @@ function logCallDisposition(payload) {
     } else if (payload.callType === "script-followup") {
       sheetName = "Follow up missing laboratory result";
       rowData = [dateOnly, payload.patientName, payload.language, payload.labName, payload.remarks];
+    } else if (payload.callType === "script-preop-labs") {
+      sheetName = "Preoperative Lab Orders";
+      rowData = [dateOnly, payload.patientName, payload.language, payload.remarks];
     } else {
       throw new Error("Unknown call type configuration.");
     }
