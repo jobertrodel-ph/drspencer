@@ -28,7 +28,7 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-function saveEODData(report) {
+function saveEODData(payload) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName("EOD Reports");
@@ -37,38 +37,97 @@ function saveEODData(report) {
       throw new Error("Sheet 'EOD Reports' not found. Please create it in your spreadsheet.");
     }
     
-    // Formats today's date into UTC-5 without the time (MM/dd/yyyy)
     var dateOnly = Utilities.formatDate(new Date(), "GMT-05:00", "MM/dd/yyyy");
+    sheet.appendRow([dateOnly, payload.reportText]);
     
-    sheet.appendRow([dateOnly, report]);
+    // Check and Append Manual Logs to Activity Logs worksheet
+    var callLogsSheet = ss.getSheetByName("Activity Logs");
+    if (callLogsSheet && payload.manualLogs && payload.manualLogs.length > 0) {
+      var existingData = callLogsSheet.getDataRange().getValues();
+      
+      payload.manualLogs.forEach(function(log) {
+        var isDuplicate = false;
+        // Verify duplicate (Index: 0=Date, 1=Name, 2=Chart, 3=Lang, 4=Type, 5=Clinic, 6=Remarks)
+        for (var i = 1; i < existingData.length; i++) {
+          var row = existingData[i];
+          if (row[0] == log[0] && row[1] == log[1] && row[2] == log[2] && 
+              row[3] == log[3] && row[4] == log[4] && row[5] == log[5] && row[6] == log[6]) {
+              isDuplicate = true;
+              break;
+          }
+        }
+        if (!isDuplicate) {
+          callLogsSheet.appendRow(log);
+          existingData.push(log); // Temporarily cache to prevent dupes within the same batch submission
+        }
+      });
+    }
+
     return "Success";
   } catch (e) {
     throw e;
   }
 }
 
+function searchPatientByChart(chartNo) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Activity Logs");
+    if (!sheet) return null;
+    var data = sheet.getDataRange().getValues();
+    
+    // Search backward to get the most recent logged name for that chart
+    for (var i = data.length - 1; i > 0; i--) {
+      if (data[i][2] === chartNo) {
+        return data[i][1]; // Column index 1 is Patient Name
+      }
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function logCallDisposition(payload) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    // Formats today's date into UTC-5 without the time (MM/dd/yyyy)
     var dateOnly = Utilities.formatDate(new Date(), "GMT-05:00", "MM/dd/yyyy");
     
     var sheetName = "";
     var rowData = [];
+    
+    // Variables for the Call Logs global sheet
+    var readableCallType = "";
+    var extraRemarks = [];
 
     // Construct the payload row based on the specific Call Type
     if (payload.callType === "script-schedule") {
       sheetName = "Schedule an Appointment";
-      rowData = [dateOnly, payload.patientName, payload.language, payload.apptType, payload.newDate, payload.clinic, payload.remarks];
+      readableCallType = sheetName;
+      rowData = [dateOnly, payload.patientName, payload.chartNo, payload.language, payload.newDate, payload.clinic, payload.remarks];
+      
+      if (payload.newDate && payload.newDate !== "N/A") extraRemarks.push("Target/New Date: " + payload.newDate);
+      
     } else if (payload.callType === "script-change") {
       sheetName = "Change Appointment Date";
-      rowData = [dateOnly, payload.patientName, payload.language, payload.reason, payload.oldDate, payload.newDate, payload.clinic, payload.remarks];
+      readableCallType = sheetName;
+      rowData = [dateOnly, payload.patientName, payload.chartNo, payload.language, payload.reason, payload.oldDate, payload.newDate, payload.clinic, payload.remarks];
+      
+      if (payload.reason && payload.reason !== "N/A") extraRemarks.push("Reason: " + payload.reason);
+      if (payload.oldDate && payload.oldDate !== "N/A") extraRemarks.push("Old Date: " + payload.oldDate);
+      if (payload.newDate && payload.newDate !== "N/A") extraRemarks.push("New Date: " + payload.newDate);
+      
     } else if (payload.callType === "script-followup") {
       sheetName = "Follow up missing laboratory result";
-      rowData = [dateOnly, payload.patientName, payload.language, payload.labName, payload.remarks];
+      readableCallType = sheetName;
+      rowData = [dateOnly, payload.patientName, payload.chartNo, payload.language, payload.labName, payload.remarks];
+      
+      if (payload.labName && payload.labName !== "N/A") extraRemarks.push("Lab Name: " + payload.labName);
+      
     } else if (payload.callType === "script-preop-labs") {
       sheetName = "Preoperative Lab Orders";
-      rowData = [dateOnly, payload.patientName, payload.language, payload.remarks];
+      readableCallType = "Preoperative Lab Orders & Facility Confirmation";
+      rowData = [dateOnly, payload.patientName, payload.chartNo, payload.language, payload.remarks];
+      
     } else {
       throw new Error("Unknown call type configuration.");
     }
@@ -78,7 +137,24 @@ function logCallDisposition(payload) {
       throw new Error("Sheet '" + sheetName + "' not found. Please create it in your spreadsheet.");
     }
 
+    // Append to respective separate sheet
     sheet.appendRow(rowData);
+    
+    // Append to "Activity Logs" all-in-one sheet
+    var callLogsSheet = ss.getSheetByName("Activity Logs");
+    if (!callLogsSheet) {
+      throw new Error("Sheet 'Activity Logs' not found. Please create it in your spreadsheet.");
+    }
+    
+    // Combine standard remarks with extra missing worksheet columns
+    var combinedRemarks = payload.remarks;
+    if (extraRemarks.length > 0) {
+      combinedRemarks += "\n" + extraRemarks.join("\n");
+    }
+    
+    var callLogsRow = [dateOnly, payload.patientName, payload.chartNo, payload.language, readableCallType, payload.clinic, combinedRemarks];
+    callLogsSheet.appendRow(callLogsRow);
+
     return "Success";
   } catch (e) {
     throw e;
@@ -88,7 +164,7 @@ function logCallDisposition(payload) {
 function fetchEODData(dateStr) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var data = { scheduled: [], changed: [], followup: [] };
+    var data = { scheduled: [], changed: [], preop: [], followup: [] };
     
     function getRows(sheetName, category, colMap) {
       var sheet = ss.getSheetByName(sheetName);
@@ -106,10 +182,11 @@ function fetchEODData(dateStr) {
       }
     }
     
-    // Call Date is index [0] in getDisplayValues(). We map the other columns respectively:
-    getRows("Schedule an Appointment", "scheduled", { patient: 1, lang: 2, type: 3, date: 4, clinic: 5, remarks: 6 });
-    getRows("Change Appointment Date", "changed", { patient: 1, lang: 2, reason: 3, oldDate: 4, newDate: 5, clinic: 6, remarks: 7 });
-    getRows("Follow up missing laboratory result", "followup", { patient: 1, lang: 2, lab: 3, remarks: 4 });
+    // Adjusted indices: Date(0), Patient(1), Chart(2), Language(3)...
+    getRows("Schedule an Appointment", "scheduled", { callDate: 0, patient: 1, chart: 2, lang: 3, date: 4, clinic: 5, remarks: 6 });
+    getRows("Change Appointment Date", "changed", { callDate: 0, patient: 1, chart: 2, lang: 3, reason: 4, oldDate: 5, newDate: 6, clinic: 7, remarks: 8 });
+    getRows("Preoperative Lab Orders", "preop", { callDate: 0, patient: 1, chart: 2, lang: 3, remarks: 4 });
+    getRows("Follow up missing laboratory result", "followup", { callDate: 0, patient: 1, chart: 2, lang: 3, lab: 4, remarks: 5 });
     
     return data;
   } catch (e) {

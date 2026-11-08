@@ -170,17 +170,142 @@ h2 {
 .eod-row {
     display: flex;
     gap: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+    background-color: #f8f9fa;
+    padding: 15px 10px 10px 10px;
+    border: 1px solid #dfe6e9;
+    border-radius: 6px;
     animation: fadeIn 0.3s ease forwards;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.eod-row input {
-    flex: 1;
+.input-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Strictly contains overflow */
+}
+
+.input-wrapper label {
+    position: absolute;
+    top: -8px;
+    left: 8px;
+    background-color: #f8f9fa;
+    padding: 0 4px;
+    font-size: 11px;
+    color: #7f8c8d;
+    font-weight: bold;
+    z-index: 1;
+    border-radius: 3px;
+}
+
+.input-wrapper input, .input-wrapper select {
+    width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    font-size: 13px;
+    background-color: #fff;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.input-wrapper input:focus, .input-wrapper select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+}
+
+.patient-wrapper { flex: 2; }
+.chart-wrapper { flex: 1; max-width: 250px; }
+.lang-wrapper { flex: 0 0 65px; }
+
+/* Table Styles for Fetched Data UI previews */
+.fetched-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background-color: #fff;
+    border: 1px solid #dfe6e9;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.fetched-table thead {
+    background-color: #f8f9fa;
+}
+.fetched-table th {
+    color: #2c3e50;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px;
+    border-bottom: 2px solid #dfe6e9;
+    border-right: 1px solid #dfe6e9;
+    white-space: nowrap;
+}
+.fetched-table th:last-child {
+    border-right: none;
+}
+.fetched-table td {
+    padding: 12px;
+    border-bottom: 1px solid #dfe6e9;
+    border-right: 1px solid #dfe6e9;
+    color: #34495e;
+}
+.fetched-table td:last-child {
+    border-right: none;
+}
+.fetched-table tr:last-child td {
+    border-bottom: none;
+}
+.fetched-table tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+.fetched-table tr:hover {
+    background-color: #f1f8ff;
+}
+.clinic-wrapper { flex: 1; max-width: 110px; }
+.remarks-wrapper { flex: 2; }
+
+.chart-input-group {
+    display: flex;
+    width: 100%;
+}
+
+.chart-input-group input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    flex-grow: 1;
+}
+
+.chart-search-btn {
+    background-color: #3498db;
+    border: none;
+    color: white;
+    padding: 0 10px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
     font-size: 14px;
 }
+
+.chart-search-btn:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+.man-lang {
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+}
+
+.man-lang.color-en { color: #2980b9; border-color: #3498db; background-color: #ebf5fb; }
+.man-lang.color-es { color: #c0392b; border-color: #e74c3c; background-color: #fdedec; }
+.man-lang.color-na { color: #7f8c8d; border-color: #bdc3c7; background-color: #ecf0f1; }
 
 .add-btn {
     background-color: #27ae60;
@@ -522,6 +647,19 @@ input[type="date"], input[type="time"], input[type="datetime-local"] {
     box-shadow: 0 0 5px rgba(231, 76, 60, 0.4) !important;
 }
 
+.warning-border {
+    border-color: #e67e22 !important;
+    box-shadow: 0 0 5px rgba(230, 126, 34, 0.4) !important;
+}
+
+.chart-warning-text {
+    color: #e67e22;
+    font-size: 11px;
+    margin-top: -3px;
+    font-weight: 600;
+    animation: fadeIn 0.3s ease forwards;
+}
+
 .answered-label {
     font-weight: bold;
     color: #2c3e50;
@@ -654,6 +792,13 @@ input[type="date"], input[type="time"], input[type="datetime-local"] {
     color: #ffffff;
     border-color: #8e44ad;
     box-shadow: 0 4px 6px rgba(155, 89, 182, 0.3);
+}
+
+.fac-btn.active-ans {
+    background-color: #00cec9; /* Teal */
+    color: #ffffff;
+    border-color: #00b894;
+    box-shadow: 0 4px 6px rgba(0, 206, 201, 0.3);
 }
 
 .appt-type-btn.active-ans {

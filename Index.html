@@ -40,9 +40,16 @@
                 </div>
 
                 <div id="field-bank" class="hidden">
-                    <div class="input-group" id="grp-patient">
-                        <label>Patient Name</label>
-                        <input type="text" id="input-patient" placeholder="Patient Name">
+                    <div class="input-group" id="grp-patient" style="flex-direction: row; gap: 15px;">
+                        <div style="flex: 2; display: flex; flex-direction: column; gap: 5px;">
+                            <label>Patient Name</label>
+                            <input type="text" id="input-patient" placeholder="Patient Name">
+                        </div>
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                            <label>Chart No.</label>
+                            <input type="text" id="input-chart" placeholder="#HF..." title="Patient Chart Number">
+                            <span id="chart-warning" class="chart-warning-text hidden">Expected: #HF + 9 digits</span>
+                        </div>
                     </div>
                     <div class="input-group" id="grp-clinic" style="align-items: center; gap: 10px;">
                         <label class="answered-label" style="font-size: 15px;">Clinic Location</label>
@@ -160,8 +167,8 @@
                                     </select>
                                 </div>
                                 
-                                <p class="spanish"><button class="tts-btn">🔊</button> 4. Según las indicaciones del doctor, necesitará <span class="ph-postop-count">[Número]</span> citas postoperatorias después de la cirugía.</p>
-                                <p class="english">4. According to the doctor's orders, you will need <span class="ph-postop-count">[Number]</span> post-op appointments after surgery.</p>
+                                <p class="spanish"><button class="tts-btn">🔊</button> 4. Según las indicaciones del doctor, necesitará <span class="ph-postop-count-es">[Número]</span> citas postoperatorias después de la cirugía.</p>
+                                <p class="english">4. According to the doctor's orders, you will need <span class="ph-postop-count-en">[Number]</span> post-op appointments after surgery.</p>
                                 
                                 <!-- Post-Op 1 -->
                                 <div id="postop-1-sec" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 6px;">
@@ -435,7 +442,22 @@
                                 <h3 class="section-header">2. Confirming Blood Work</h3>
                                 <p class="spanish"><button class="tts-btn">🔊</button> Primero, con respecto a sus análisis de sangre, ¿dónde y cuándo planea realizárselos?</p>
                                 <p class="english">First, regarding your blood work, where and when do you plan to have it done?</p>
-                                <input type="text" class="trans-date-time-box" placeholder="Type blood work facility & date here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                                <div class="form-grid" style="margin-top: 10px; align-items: start;">
+                                    <div class="input-group">
+                                        <label>Facility</label>
+                                        <div class="ans-btn-group" style="flex-wrap: wrap; justify-content: flex-start;" id="blood-facility-group">
+                                            <button class="ans-btn fac-btn" data-val="Labcorp">Labcorp</button>
+                                            <button class="ans-btn fac-btn" data-val="EMC">EMC</button>
+                                            <button class="ans-btn fac-btn" data-val="TotalCare">TotalCare</button>
+                                            <button class="ans-btn fac-btn" data-val="Others">Others:</button>
+                                        </div>
+                                        <input type="text" id="blood-other-input" class="trans-date-time-box hidden" placeholder="Specify other facility..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Date</label>
+                                        <input type="date" id="blood-date" class="trans-date-time-box" style="padding: 10px; background-color: #f8f9fa;">
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- 3. Confirming X-ray -->
@@ -443,7 +465,21 @@
                                 <h3 class="section-header">3. Confirming X-ray</h3>
                                 <p class="spanish"><button class="tts-btn">🔊</button> ¿Qué hay de sus radiografías (rayos X)? ¿Dónde y cuándo planea realizárselas?</p>
                                 <p class="english">How about your X-ray? Where and when are you planning to complete it?</p>
-                                <input type="text" class="trans-date-time-box" placeholder="Type X-ray facility & date here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                                <div class="form-grid" style="margin-top: 10px; align-items: start;">
+                                    <div class="input-group">
+                                        <label>Facility</label>
+                                        <div class="ans-btn-group" style="flex-wrap: wrap; justify-content: flex-start;" id="xray-facility-group">
+                                            <button class="ans-btn fac-btn" data-val="RadNet">RadNet</button>
+                                            <button class="ans-btn fac-btn" data-val="EMC">EMC</button>
+                                            <button class="ans-btn fac-btn" data-val="Others">Others:</button>
+                                        </div>
+                                        <input type="text" id="xray-other-input" class="trans-date-time-box hidden" placeholder="Specify other facility..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Date</label>
+                                        <input type="date" id="xray-date" class="trans-date-time-box" style="padding: 10px; background-color: #f8f9fa;">
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- 4. Confirming EKG -->
@@ -451,7 +487,21 @@
                                 <h3 class="section-header">4. Confirming EKG</h3>
                                 <p class="spanish"><button class="tts-btn">🔊</button> Y para su electrocardiograma, ¿dónde y cuándo se lo realizará?</p>
                                 <p class="english">And for your EKG, where and when will you be having that done?</p>
-                                <input type="text" class="trans-date-time-box" placeholder="Type EKG facility & date here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                                <div class="form-grid" style="margin-top: 10px; align-items: start;">
+                                    <div class="input-group">
+                                        <label>Facility</label>
+                                        <div class="ans-btn-group" style="flex-wrap: wrap; justify-content: flex-start;" id="ekg-facility-group">
+                                            <button class="ans-btn fac-btn" data-val="EMC">EMC</button>
+                                            <button class="ans-btn fac-btn" data-val="Primary Care Physician Facility">Primary Care Physician Facility</button>
+                                            <button class="ans-btn fac-btn" data-val="Others">Others:</button>
+                                        </div>
+                                        <input type="text" id="ekg-other-input" class="trans-date-time-box hidden" placeholder="Specify other facility..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Date</label>
+                                        <input type="date" id="ekg-date" class="trans-date-time-box" style="padding: 10px; background-color: #f8f9fa;">
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- 5. Confirming Primary Care Physician (PCP) -->
@@ -459,7 +509,7 @@
                                 <h3 class="section-header">5. Confirming Primary Care Physician (PCP)</h3>
                                 <p class="spanish"><button class="tts-btn">🔊</button> ¿Podría también darme el nombre de su médico de atención primaria y la ubicación de su consultorio?</p>
                                 <p class="english">May I also have the name of your primary care physician and the office location?</p>
-                                <input type="text" class="trans-date-time-box" placeholder="Type PCP name & location here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
+                                <input type="text" id="preop-pcp-input" class="trans-date-time-box" placeholder="Type PCP name & location here..." style="margin-top: 10px; padding: 10px; background-color: #f8f9fa;">
                             </div>
 
                             <!-- 6. Closing and Confirmation -->
@@ -539,30 +589,61 @@
                 </div>
                 
                 <div class="eod-section">
-                    <h3>1. Scheduled Appointment</h3>
+                    <h3>A. Surgery Scheduling</h3>
                     <div id="auto-scheduled-container" class="fetched-data-container">
                         <p class="empty-msg">Select a date and click 'Fetch' to pull appointments...</p>
                     </div>
                 </div>
 
                 <div class="eod-section">
-                    <h3>2. Changed Appointment Date</h3>
+                    <h3>B. Rescheduled Appointments</h3>
                     <div id="auto-changed-container" class="fetched-data-container">
                         <p class="empty-msg">Select a date and click 'Fetch' to pull changed schedules...</p>
                     </div>
                 </div>
 
                 <div class="eod-section">
-                    <h3>3. Progress for Scheduled Surgeries</h3>
+                    <h3>C. Follow up with the Doctor Office for Patient's Medical Clearance</h3>
+                    <div id="manual-c-container"></div>
+                    <button class="add-btn add-manual-btn" data-target="manual-c-container">+ Add Entry</button>
+                </div>
+
+                <div class="eod-section">
+                    <h3>D. Follow-up laboratories with patients</h3>
                     <div id="auto-progress-container" class="fetched-data-container">
-                        <p class="empty-msg">Select a date and click 'Fetch' to pull surgery lab progress...</p>
+                        <p class="empty-msg">Select a date and click 'Fetch' to pull laboratory follow-ups...</p>
                     </div>
                 </div>
 
                 <div class="eod-section">
-                    <h3>4. Follow-ups With Other Clinics (Pending Labs)</h3>
-                    <div id="followups-container"></div>
-                    <button class="add-btn" id="add-followup-btn">+ Add Clinic Follow-up</button>
+                    <h3>E. Preoperative Lab Orders & Facility Confirmation</h3>
+                    <div id="auto-preop-container" class="fetched-data-container">
+                        <p class="empty-msg">Select a date and click 'Fetch' to pull preop lab orders...</p>
+                    </div>
+                </div>
+
+                <div class="eod-section">
+                    <h3>F. Call Insurance for Surgery Auth Follow-up</h3>
+                    <div id="manual-f-container"></div>
+                    <button class="add-btn add-manual-btn" data-target="manual-f-container">+ Add Entry</button>
+                </div>
+
+                <div class="eod-section">
+                    <h3>G. Creating Booking Sheet</h3>
+                    <div id="manual-g-container"></div>
+                    <button class="add-btn add-manual-btn" data-target="manual-g-container">+ Add Entry</button>
+                </div>
+
+                <div class="eod-section">
+                    <h3>H. Creating Lab Orders</h3>
+                    <div id="manual-h-container"></div>
+                    <button class="add-btn add-manual-btn" data-target="manual-h-container">+ Add Entry</button>
+                </div>
+
+                <div class="eod-section">
+                    <h3>I. DME request creation and follow-up</h3>
+                    <div id="manual-i-container"></div>
+                    <button class="add-btn add-manual-btn" data-target="manual-i-container">+ Add Entry</button>
                 </div>
 
                 <div class="eod-actions" style="position: relative; display: flex; align-items: center; justify-content: center; gap: 15px;">
@@ -635,15 +716,39 @@
         </aside>
     </main>
 
-    <template id="followup-template">
+    <template id="manual-entry-template">
         <div class="eod-row">
-            <input type="text" class="fup-clinic" placeholder="Clinic / Lab Name">
-            <input type="text" class="fup-patient" placeholder="Patient Name">
-            <input type="text" class="fup-pending" placeholder="Pending Result Details">
-            <input type="text" class="fup-status" placeholder="Status / Response">
-            <button class="remove-btn" type="button">X</button>
+            <div class="input-wrapper patient-wrapper">
+                <label>Patient Name</label>
+                <input type="text" class="man-patient">
+            </div>
+            <div class="input-wrapper chart-wrapper">
+                <label>Chart No.</label>
+                <div class="chart-input-group">
+                    <input type="text" class="man-chart" placeholder="#HF...">
+                    <button type="button" class="chart-search-btn" title="Search Database">🔍</button>
+                </div>
+            </div>
+            <div class="input-wrapper lang-wrapper">
+                <label>Lang</label>
+                <select class="man-lang color-en">
+                    <option value="EN" selected>EN</option>
+                    <option value="ES">ES</option>
+                    <option value="">N/A</option>
+                </select>
+            </div>
+            <div class="input-wrapper clinic-wrapper">
+                <label>Clinic</label>
+                <input type="text" class="man-clinic">
+            </div>
+            <div class="input-wrapper remarks-wrapper">
+                <label>Remarks</label>
+                <input type="text" class="man-remarks">
+            </div>
+            <button class="remove-btn" type="button" title="Remove Entry">X</button>
         </div>
     </template>
+
 
     <?!= include('Script'); ?>
 </body>

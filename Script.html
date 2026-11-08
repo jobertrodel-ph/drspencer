@@ -144,6 +144,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    const facBtns = document.querySelectorAll('.fac-btn');
+    facBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const container = this.closest('.ans-btn-group');
+            container.querySelectorAll('.fac-btn').forEach(b => b.classList.remove('active-ans'));
+            this.classList.add('active-ans');
+            
+            const val = this.getAttribute('data-val');
+            // Check for the "Others" hidden text input which immediately follows the group
+            const otherInput = container.nextElementSibling;
+            if (otherInput && otherInput.tagName === 'INPUT') {
+                if (val === 'Others') {
+                    otherInput.classList.remove('hidden');
+                    otherInput.focus();
+                } else {
+                    otherInput.classList.add('hidden');
+                    otherInput.value = ''; // Clears it if user abandons the 'Others' choice
+                }
+            }
+        });
+    });
+
     const clinicBtns = document.querySelectorAll('.clinic-btn');
     clinicBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -206,7 +228,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update Post-op count dependencies
         let count = parseInt(document.getElementById('sch-postop-count').value) || 0;
-        document.querySelectorAll('.ph-postop-count').forEach(el => el.textContent = count > 0 ? count : '[Number/Número]');
+        const countWordsEs = ["", "una", "dos", "tres", "cuatro", "cinco", "seis"];
+        document.querySelectorAll('.ph-postop-count-en').forEach(el => el.textContent = count > 0 ? count : '[Number]');
+        document.querySelectorAll('.ph-postop-count-es').forEach(el => el.textContent = count > 0 ? countWordsEs[count] : '[Número]');
 
         // Dynamically Show/Hide Post-op blocks and their Review lines based on Dropdown
         for (let i = 1; i <= 6; i++) {
@@ -269,6 +293,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    const inputChart = document.getElementById('input-chart');
+    const chartWarning = document.getElementById('chart-warning');
+    
+    if (inputChart) {
+        inputChart.addEventListener('input', function(e) {
+            let val = e.target.value.toUpperCase();
+            if (val.length > 0 && !val.startsWith('#')) {
+                val = '#' + val;
+            }
+            e.target.value = val;
+            
+            if (val.length > 0) {
+                const isStandard = /^#HF\d{9}$/.test(val);
+                if (!isStandard) {
+                    inputChart.classList.add('warning-border');
+                    if (chartWarning) chartWarning.classList.remove('hidden');
+                } else {
+                    inputChart.classList.remove('warning-border');
+                    if (chartWarning) chartWarning.classList.add('hidden');
+                }
+            } else {
+                inputChart.classList.remove('warning-border');
+                if (chartWarning) chartWarning.classList.add('hidden');
+            }
+        });
+    }
+
     const submitDispBtn = document.getElementById('submit-disposition-btn');
     if (submitDispBtn) {
         submitDispBtn.addEventListener('click', function() {
@@ -280,7 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const callType = activeCallBtn.getAttribute('data-script');
             const patientName = document.getElementById('input-patient').value.trim() || "N/A";
-            const remarks = document.getElementById('remarks-output').value.trim() || "No remarks";
+            const chartNo = document.getElementById('input-chart').value.trim() || "N/A";
+            let remarks = document.getElementById('remarks-output').value.trim() || "No remarks"; // Changed to 'let' to fix TypeError
             
             const activeLang = document.querySelector('.remark-btn[data-group="lang"].active-remark');
             let language = "N/A";
@@ -296,6 +348,36 @@ document.addEventListener('DOMContentLoaded', function() {
             let clinic = "N/A";
             let rawNewDate = "";
             
+            // Auto-harvest the Preoperative Lab specific Facility Data
+            if (callType === 'script-preop-labs') {
+                const getFac = (idPrefix) => {
+                    const activeBtn = document.querySelector(`#${idPrefix}-facility-group .fac-btn.active-ans`);
+                    if (!activeBtn) return '';
+                    let val = activeBtn.getAttribute('data-val');
+                    if (val === 'Others') {
+                        const otherInput = document.getElementById(`${idPrefix}-other-input`);
+                        val = (otherInput && otherInput.value.trim()) ? otherInput.value.trim() : 'Others';
+                    }
+                    const dateVal = document.getElementById(`${idPrefix}-date`).value;
+                    const dateStr = dateVal ? formatDate(dateVal) : 'No Date';
+                    return `${val} (${dateStr})`;
+                };
+
+                let preopDetails = [];
+                const bloodInfo = getFac('blood');
+                if (bloodInfo) preopDetails.push("Blood Work: " + bloodInfo);
+                const xrayInfo = getFac('xray');
+                if (xrayInfo) preopDetails.push("X-ray: " + xrayInfo);
+                const ekgInfo = getFac('ekg');
+                if (ekgInfo) preopDetails.push("EKG: " + ekgInfo);
+                const pcpVal = document.getElementById('preop-pcp-input') ? document.getElementById('preop-pcp-input').value.trim() : '';
+                if (pcpVal) preopDetails.push("PCP: " + pcpVal);
+                
+                if (preopDetails.length > 0) {
+                    remarks = remarks === "No remarks" ? preopDetails.join(" | ") : remarks + " | " + preopDetails.join(" | ");
+                }
+            }
+
             // Route payload extraction dynamically based on which UI is actually active
             if (callType === 'script-schedule') {
                 const preopClinic = document.querySelector('.sch-clinic-btn[data-target="preop"].active-ans');
@@ -317,14 +399,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const reason = document.getElementById('input-reason').value.trim() || "N/A";
             const labName = document.getElementById('input-lab').value.trim() || "N/A";
 
-            // Appointment Type selector was removed. Default to a standard layout descriptor to populate the Sheet's column natively.
-            const apptType = (callType === 'script-schedule') ? "Full Schedule Workflow" : "N/A";
-
             const payload = {
                 callType: callType,
                 patientName: patientName,
+                chartNo: chartNo,
                 language: language,
-                apptType: apptType,
                 clinic: clinic,
                 newDate: newDate,
                 oldDate: oldDate,
@@ -350,6 +429,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         document.getElementById('input-patient').value = '';
                         document.getElementById('input-patient').dispatchEvent(new Event('input', { bubbles: true }));
+                        document.getElementById('input-chart').value = '';
+                        document.getElementById('input-chart').classList.remove('warning-border');
+                        if (document.getElementById('chart-warning')) document.getElementById('chart-warning').classList.add('hidden');
                         
                         document.querySelectorAll('.remark-btn').forEach(b => b.classList.remove('active-remark'));
                         document.getElementById('remarks-output').value = '';
@@ -360,6 +442,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             document.querySelectorAll('#script-schedule input, #script-schedule select').forEach(el => el.value = '');
                             document.querySelectorAll('.sch-clinic-btn').forEach(b => b.classList.remove('active-ans'));
                             if (typeof updateSchedulePlaceholders === 'function') updateSchedulePlaceholders();
+                        } else if (callType === 'script-preop-labs') {
+                            document.querySelectorAll('#script-preop-labs input[type="text"]').forEach(el => el.value = '');
+                            document.querySelectorAll('#script-preop-labs .fac-btn').forEach(b => b.classList.remove('active-ans'));
+                            document.querySelectorAll('#script-preop-labs .hidden.trans-date-time-box').forEach(el => el.classList.add('hidden'));
+                            // Restore Date Pickers across the app safely to UTC-8
+                            prefillAllDatePickers(); 
                         }
                     }, 2500);
                 })
@@ -569,27 +657,36 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Fetch global state variable for generated text output
-    let fetchedEODData = { scheduled: [], changed: [], followup: [] };
+    let fetchedEODData = { scheduled: [], changed: [], preop: [], followup: [] };
 
-    // Set Default UTC-5 Date on Date Picker
-    function setEODDefaultDate() {
-        const d = new Date();
-        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-        const nd = new Date(utc + (3600000 * -5)); // apply UTC-5 offset
-        
-        const year = nd.getFullYear();
-        const month = String(nd.getMonth() + 1).padStart(2, '0');
-        const day = String(nd.getDate()).padStart(2, '0');
-        
-        const datePicker = document.getElementById('eod-date-picker');
-        if (datePicker) datePicker.value = `${year}-${month}-${day}`;
+    // Auto-fill all date pickers across the app with the current UTC-8 Date securely. 
+    function prefillAllDatePickers() {
+        // Enforces California Time (UTC-8) reliably over standard Math epoch parsing
+        const utc8TodayStr = new Intl.DateTimeFormat('en-CA', { 
+            timeZone: 'America/Los_Angeles', 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit' 
+        }).format(new Date());
+
+        document.querySelectorAll('input[type="date"]').forEach(el => {
+            if (!el.value) {
+                el.value = utc8TodayStr;
+                // Dispatch input event immediately to refresh linked text placeholders on Scripts
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
     }
-    setEODDefaultDate();
+    prefillAllDatePickers();
 
     let saveTimeout;
     function saveEODState() {
         const eodData = {
-            followups: document.getElementById('followups-container').innerHTML
+            manualC: document.getElementById('manual-c-container').innerHTML,
+            manualF: document.getElementById('manual-f-container').innerHTML,
+            manualG: document.getElementById('manual-g-container').innerHTML,
+            manualH: document.getElementById('manual-h-container').innerHTML,
+            manualI: document.getElementById('manual-i-container').innerHTML
         };
         localStorage.setItem('eodDraft', JSON.stringify(eodData));
         attachListenersToEOD();
@@ -607,12 +704,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachListenersToEOD() {
-        const eodInputs = document.querySelectorAll('#eod-generator input[type="text"], #eod-generator input[type="datetime-local"], #eod-generator input[type="date"]');
+        const eodInputs = document.querySelectorAll('#eod-generator input[type="text"], #eod-generator input[type="datetime-local"], #eod-generator input[type="date"], #eod-generator select');
         eodInputs.forEach(input => {
             input.removeEventListener('input', inputChangeHandler);
             input.addEventListener('input', inputChangeHandler);
+            input.removeEventListener('change', inputChangeHandler);
+            input.addEventListener('change', inputChangeHandler);
         });
-
         const tbdBoxes = document.querySelectorAll('.tbd-checkbox');
         tbdBoxes.forEach(box => {
             box.removeEventListener('change', checkboxChangeHandler);
@@ -628,7 +726,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function inputChangeHandler(e) {
-        e.target.setAttribute('value', e.target.value);
+        if (e.target.tagName === 'SELECT') {
+            Array.from(e.target.options).forEach(opt => {
+                if (opt.value === e.target.value) opt.setAttribute('selected', 'selected');
+                else opt.removeAttribute('selected');
+            });
+            // Update color classes on the fly based on dropdown value
+            e.target.classList.remove('color-en', 'color-es', 'color-na');
+            if (e.target.value === 'EN') e.target.classList.add('color-en');
+            else if (e.target.value === 'ES') e.target.classList.add('color-es');
+            else e.target.classList.add('color-na');
+        } else {
+            e.target.setAttribute('value', e.target.value);
+        }
         e.target.classList.remove('error-border');
         saveEODState();
     }
@@ -660,11 +770,15 @@ document.addEventListener('DOMContentLoaded', function() {
         saveEODState();
     }
 
-    document.getElementById('add-followup-btn').addEventListener('click', () => appendTemplateRow('followup-template', 'followups-container'));
+    document.querySelectorAll('.add-manual-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            appendTemplateRow('manual-entry-template', this.getAttribute('data-target'));
+        });
+    });
 
     document.getElementById('clear-eod-btn').addEventListener('click', function() {
         if(confirm("Are you sure you want to clear today's manual entries?")) {
-            document.getElementById('followups-container').innerHTML = '';
+            document.querySelectorAll('[id^="manual-"]').forEach(container => container.innerHTML = '');
             document.getElementById('eod-output-box').innerHTML = '';
             localStorage.removeItem('eodDraft');
         }
@@ -673,7 +787,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedEOD = localStorage.getItem('eodDraft');
     if (savedEOD) {
         const eodData = JSON.parse(savedEOD);
-        document.getElementById('followups-container').innerHTML = eodData.followups || '';
+        if (eodData.manualC) document.getElementById('manual-c-container').innerHTML = eodData.manualC;
+        if (eodData.manualF) document.getElementById('manual-f-container').innerHTML = eodData.manualF;
+        if (eodData.manualG) document.getElementById('manual-g-container').innerHTML = eodData.manualG;
+        if (eodData.manualH) document.getElementById('manual-h-container').innerHTML = eodData.manualH;
+        if (eodData.manualI) document.getElementById('manual-i-container').innerHTML = eodData.manualI;
         attachListenersToEOD();
     }
 
@@ -712,132 +830,168 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderFetchedData() {
         const contSched = document.getElementById('auto-scheduled-container');
         const contChange = document.getElementById('auto-changed-container');
+        const contPreop = document.getElementById('auto-preop-container');
         const contProg = document.getElementById('auto-progress-container');
         
-        const getListHTML = (arr, renderFn) => arr.length === 0 ? `<p class="empty-msg">No logs found for this date.</p>` : arr.map(renderFn).join('');
+        const tableStart = `<div style="overflow-x:auto;"><table class="fetched-table"><thead><tr>`;
+        const tableMid = `</tr></thead><tbody>`;
+        const tableEnd = `</tbody></table></div>`;
         
-        contSched.innerHTML = getListHTML(fetchedEODData.scheduled, (item) => `
-            <div class="fetched-item">
-                <strong>${item.patient}</strong> (${item.type}) at ${item.clinic}<br>
-                Date Set: ${item.date} | Remarks: <em>${item.remarks}</em>
-            </div>
-        `);
+        const getTableHTML = (arr, headers, renderRowFn) => {
+            if (arr.length === 0) return `<p class="empty-msg">No logs found for this date.</p>`;
+            let html = tableStart + headers.map(h => `<th>${h}</th>`).join('') + tableMid;
+            html += arr.map(renderRowFn).join('');
+            html += tableEnd;
+            return html;
+        };
         
-        contChange.innerHTML = getListHTML(fetchedEODData.changed, (item) => `
-            <div class="fetched-item">
-                <strong>${item.patient}</strong> (${item.clinic})<br>
-                Changed: ${item.oldDate} ➔ ${item.newDate} | Reason: ${item.reason} | Remarks: <em>${item.remarks}</em>
-            </div>
-        `);
+        contSched.innerHTML = getTableHTML(
+            fetchedEODData.scheduled, 
+            ["Patient Name", "Chart No.", "Language", "Clinic", "Date Set", "Remarks"], 
+            (item) => `<tr><td>${item.patient}</td><td>${item.chart}</td><td>${item.lang}</td><td>${item.clinic}</td><td>${item.date}</td><td>${item.remarks}</td></tr>`
+        );
         
-        contProg.innerHTML = getListHTML(fetchedEODData.followup, (item) => `
-            <div class="fetched-item">
-                <strong>${item.patient}</strong> | Lab: ${item.lab}<br>
-                Remarks: <em>${item.remarks}</em>
-            </div>
-        `);
+        contChange.innerHTML = getTableHTML(
+            fetchedEODData.changed, 
+            ["Patient Name", "Chart No.", "Language", "Clinic", "Old Date", "New Date", "Reason", "Remarks"], 
+            (item) => `<tr><td>${item.patient}</td><td>${item.chart}</td><td>${item.lang}</td><td>${item.clinic}</td><td>${item.oldDate}</td><td>${item.newDate}</td><td>${item.reason}</td><td>${item.remarks}</td></tr>`
+        );
+        
+        contProg.innerHTML = getTableHTML(
+            fetchedEODData.followup, 
+            ["Patient Name", "Chart No.", "Language", "Pending Lab", "Remarks"], 
+            (item) => `<tr><td>${item.patient}</td><td>${item.chart}</td><td>${item.lang}</td><td>${item.lab}</td><td>${item.remarks}</td></tr>`
+        );
+        
+        contPreop.innerHTML = getTableHTML(
+            fetchedEODData.preop, 
+            ["Patient Name", "Chart No.", "Language", "Remarks"], 
+            (item) => `<tr><td>${item.patient}</td><td>${item.chart}</td><td>${item.lang}</td><td>${item.remarks}</td></tr>`
+        );
     }
 
     document.getElementById('generate-eod-btn').addEventListener('click', function() {
-        let hasErrors = false;
-        
-        document.querySelectorAll('.error-border').forEach(el => el.classList.remove('error-border'));
-        
-        const inputsToValidate = document.querySelectorAll('#eod-generator .eod-row input[type="text"]');
-        
-        inputsToValidate.forEach(input => {
-            if (input.value.trim() === '') {
-                input.classList.add('error-border');
-                hasErrors = true;
-            }
-        });
-        
-        if (hasErrors) {
-            const proceed = confirm("Some Follow-up fields are blank. Ignore and generate anyway?");
-            if (!proceed) return;
-        }
-
         const reportDate = document.getElementById('eod-date-picker').value || "Unknown Date";
         
-        // Setup Inline Styles for perfect Gmail Email rendering
         const tableStyle = 'style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 14px; font-family: sans-serif;"';
         const thStyle = 'style="border: 1px solid #bdc3c7; padding: 10px; background-color: #ecf0f1; text-align: left; font-weight: bold; color: #2c3e50;"';
         const tdStyle = 'style="border: 1px solid #bdc3c7; padding: 10px; color: #34495e;"';
-        const h3Style = 'style="color: #34495e; font-family: sans-serif; font-size: 16px; margin-top: 20px; margin-bottom: 10px;"';
+        const h3Style = 'style="color: #34495e; font-family: sans-serif; font-size: 16px; margin-top: 20px; margin-bottom: 10px; text-transform: uppercase;"';
         const noneStyle = 'style="margin: 0; color: #7f8c8d; font-style: italic; font-family: sans-serif;"';
 
         let eodHTML = `<div style="font-family: sans-serif; color: #333; max-width: 900px;">`;
         eodHTML += `<h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; margin-bottom: 20px;">EOD REPORT - ${reportDate}</h2>`;
+        eodHTML += `<h3 style="color: #2980b9; margin-bottom: 15px;">COMPLETED / FOLLOW-UPS</h3>`;
 
-        let plainTextEOD = `EOD REPORT - ${reportDate}\n\n`;
+        let plainTextEOD = `EOD REPORT - ${reportDate}\n\nCOMPLETED / FOLLOW-UPS\n`;
 
-        // 1. SCHEDULED APPOINTMENT
-        eodHTML += `<h3 ${h3Style}>1. SCHEDULED APPOINTMENT</h3>`;
-        plainTextEOD += "1. SCHEDULED APPOINTMENT\n";
-        if (fetchedEODData.scheduled.length === 0) {
-            eodHTML += `<p ${noneStyle}>- None</p>`;
-            plainTextEOD += "- None\n";
-        } else {
-            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Patient Name</th><th ${thStyle}>Language</th><th ${thStyle}>Type</th><th ${thStyle}>Clinic</th><th ${thStyle}>Date Set</th><th ${thStyle}>Remarks</th></tr></thead><tbody>`;
-            fetchedEODData.scheduled.forEach(item => {
-                eodHTML += `<tr><td ${tdStyle}>${item.patient}</td><td ${tdStyle}>${item.lang}</td><td ${tdStyle}>${item.type}</td><td ${tdStyle}>${item.clinic}</td><td ${tdStyle}>${item.date}</td><td ${tdStyle}>${item.remarks}</td></tr>`;
-                plainTextEOD += `- ${item.patient} | Language: ${item.lang} | ${item.type} Appointment (${item.clinic}) | Date Set: ${item.date} | Remarks: ${item.remarks}\n`;
-            });
-            eodHTML += `</tbody></table>`;
+        // Universal Generator for standard Fetched blocks
+        function getFetchedSection(title, dataArr, letter, cols, plainFormatter) {
+            let sHTML = `<h3 ${h3Style}>${letter}. ${title}</h3>`;
+            let sText = `${letter}. ${title}\n`;
+            if (dataArr.length === 0) {
+                sHTML += `<p ${noneStyle}>- None</p>`;
+                sText += "- None\n\n";
+            } else {
+                sHTML += `<table ${tableStyle}><thead><tr>`;
+                cols.forEach(c => sHTML += `<th ${thStyle}>${c}</th>`);
+                sHTML += `</tr></thead><tbody>`;
+                dataArr.forEach((item, index) => {
+                    const rowData = plainFormatter(item, index);
+                    sHTML += `<tr>`;
+                    rowData.htmlVals.forEach(v => sHTML += `<td ${tdStyle}>${v}</td>`);
+                    sHTML += `</tr>`;
+                    sText += rowData.textLines;
+                });
+                sHTML += `</tbody></table>`;
+                sText += "\n";
+            }
+            return { html: sHTML, text: sText };
         }
-        plainTextEOD += "\n";
 
-        // 2. CHANGED APPOINTMENT DATE
-        eodHTML += `<h3 ${h3Style}>2. CHANGED APPOINTMENT DATE</h3>`;
-        plainTextEOD += "2. CHANGED APPOINTMENT DATE\n";
-        if (fetchedEODData.changed.length === 0) {
-            eodHTML += `<p ${noneStyle}>- None</p>`;
-            plainTextEOD += "- None\n";
-        } else {
-            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Patient Name</th><th ${thStyle}>Language</th><th ${thStyle}>Clinic</th><th ${thStyle}>Old Date</th><th ${thStyle}>New Date</th><th ${thStyle}>Reason</th><th ${thStyle}>Remarks</th></tr></thead><tbody>`;
-            fetchedEODData.changed.forEach(item => {
-                eodHTML += `<tr><td ${tdStyle}>${item.patient}</td><td ${tdStyle}>${item.lang}</td><td ${tdStyle}>${item.clinic}</td><td ${tdStyle}>${item.oldDate}</td><td ${tdStyle}>${item.newDate}</td><td ${tdStyle}>${item.reason}</td><td ${tdStyle}>${item.remarks}</td></tr>`;
-                plainTextEOD += `- ${item.patient} | Language: ${item.lang} | Clinic: ${item.clinic} | Changed: ${item.oldDate} -> ${item.newDate} | Reason: ${item.reason} | Remarks: ${item.remarks}\n`;
-            });
-            eodHTML += `</tbody></table>`;
-        }
-        plainTextEOD += "\n";
+        // Universal Generator for standard Manual blocks
+        function getManualSection(title, containerId, letter) {
+            let sHTML = `<h3 ${h3Style}>${letter}. ${title}</h3>`;
+            let sText = `${letter}. ${title}\n`;
+            const rows = document.querySelectorAll(`#${containerId} .eod-row`);
+            if (rows.length === 0) {
+                sHTML += `<p ${noneStyle}>- None</p>`;
+                sText += "- None\n\n";
+            } else {
+                sHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Date</th><th ${thStyle}>Patient Name</th><th ${thStyle}>Chart No.</th><th ${thStyle}>Language</th><th ${thStyle}>Clinic</th><th ${thStyle}>Remarks</th></tr></thead><tbody>`;
+                rows.forEach((row, index) => {
+                    const pat = row.querySelector('.man-patient').value.trim() || "Unknown";
+                    const chart = row.querySelector('.man-chart').value.trim();
+                    const lang = row.querySelector('.man-lang').value.trim();
+                    const clin = row.querySelector('.man-clinic').value.trim();
+                    const rem = row.querySelector('.man-remarks').value.trim();
 
-        // 3. PROGRESS FOR SCHEDULED SURGERIES
-        eodHTML += `<h3 ${h3Style}>3. PROGRESS FOR SCHEDULED SURGERIES</h3>`;
-        plainTextEOD += "3. PROGRESS FOR SCHEDULED SURGERIES\n";
-        if (fetchedEODData.followup.length === 0) {
-            eodHTML += `<p ${noneStyle}>- None</p>`;
-            plainTextEOD += "- None\n";
-        } else {
-            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Patient Name</th><th ${thStyle}>Language</th><th ${thStyle}>Pending Lab</th><th ${thStyle}>Remarks</th></tr></thead><tbody>`;
-            fetchedEODData.followup.forEach(item => {
-                eodHTML += `<tr><td ${tdStyle}>${item.patient}</td><td ${tdStyle}>${item.lang}</td><td ${tdStyle}>${item.lab}</td><td ${tdStyle}>${item.remarks}</td></tr>`;
-                plainTextEOD += `- ${item.patient} | Language: ${item.lang} | Pending Lab: ${item.lab} | Remarks: ${item.remarks}\n`;
-            });
-            eodHTML += `</tbody></table>`;
+                    sHTML += `<tr><td ${tdStyle}>${reportDate}</td><td ${tdStyle}>${pat}</td><td ${tdStyle}>${chart}</td><td ${tdStyle}>${lang}</td><td ${tdStyle}>${clin}</td><td ${tdStyle}>${rem}</td></tr>`;
+                    
+                    const chartStr = chart ? ` (${chart})` : "";
+                    sText += `${index + 1}. ${pat}${chartStr} \n`;
+                    if (lang) sText += ` • Language: ${lang} \n`;
+                    if (clin) sText += ` • Clinic: ${clin} \n`;
+                    if (rem) sText += ` • Remarks: ${rem} \n`;
+                });
+                sHTML += `</tbody></table>`;
+                sText += "\n";
+            }
+            return { html: sHTML, text: sText };
         }
-        plainTextEOD += "\n";
 
-        // 4. FOLLOW-UPS WITH OTHER CLINICS
-        eodHTML += `<h3 ${h3Style}>4. FOLLOW-UPS WITH OTHER CLINICS</h3>`;
-        plainTextEOD += "4. FOLLOW-UPS WITH OTHER CLINICS\n";
-        const fupRows = document.querySelectorAll('#followups-container .eod-row');
-        if (fupRows.length === 0) {
-            eodHTML += `<p ${noneStyle}>- None</p>`;
-            plainTextEOD += "- None\n";
-        } else {
-            eodHTML += `<table ${tableStyle}><thead><tr><th ${thStyle}>Clinic/Lab Name</th><th ${thStyle}>Patient Name</th><th ${thStyle}>Pending Result Details</th><th ${thStyle}>Status/Response</th></tr></thead><tbody>`;
-            fupRows.forEach(row => {
-                const clinic = row.querySelector('.fup-clinic').value || "Unknown Clinic";
-                const patient = row.querySelector('.fup-patient').value || "Unknown Patient";
-                const pending = row.querySelector('.fup-pending').value || "Unknown Lab";
-                const status = row.querySelector('.fup-status').value || "Pending";
-                eodHTML += `<tr><td ${tdStyle}>${clinic}</td><td ${tdStyle}>${patient}</td><td ${tdStyle}>${pending}</td><td ${tdStyle}>${status}</td></tr>`;
-                plainTextEOD += `- Called ${clinic} regarding ${patient}'s pending ${pending} | Status: ${status}\n`;
+        // A. SURGERY SCHEDULING (Fetched)
+        let secA = getFetchedSection("Surgery Scheduling", fetchedEODData.scheduled, "A", 
+            ["Date", "Patient Name", "Chart No.", "Language", "Clinic", "Date Set", "Remarks"], 
+            (item, index) => {
+                let lines = `${index + 1}. ${item.patient} (${item.chart}) \n • Language: ${item.lang} \n • Clinic: ${item.clinic} \n • Date Set: ${item.date} \n • Remarks: ${item.remarks} \n`;
+                return { htmlVals: [item.callDate, item.patient, item.chart, item.lang, item.clinic, item.date, item.remarks], textLines: lines };
             });
-            eodHTML += `</tbody></table>`;
-        }
+        eodHTML += secA.html; plainTextEOD += secA.text;
+
+        // B. RESCHEDULED APPOINTMENTS (Fetched)
+        let secB = getFetchedSection("Rescheduled Appointments", fetchedEODData.changed, "B", 
+            ["Date", "Patient Name", "Chart No.", "Language", "Clinic", "Old Date", "New Date", "Reason", "Remarks"], 
+            (item, index) => {
+                let lines = `${index + 1}. ${item.patient} (${item.chart}) \n • Language: ${item.lang} \n • Clinic: ${item.clinic} \n • Changed: ${item.oldDate} -> ${item.newDate} \n • Reason: ${item.reason} \n • Remarks: ${item.remarks} \n`;
+                return { htmlVals: [item.callDate, item.patient, item.chart, item.lang, item.clinic, item.oldDate, item.newDate, item.reason, item.remarks], textLines: lines };
+            });
+        eodHTML += secB.html; plainTextEOD += secB.text;
+
+        // C. Follow up with the Doctor Office for Patient's Medical Clearance (Manual)
+        let secC = getManualSection("Follow up with the Doctor Office for Patient's Medical Clearance", "manual-c-container", "C");
+        eodHTML += secC.html; plainTextEOD += secC.text;
+
+        // D. Follow-up laboratories with patients (Fetched)
+        let secD = getFetchedSection("Follow-up laboratories with patients", fetchedEODData.followup, "D", 
+            ["Date", "Patient Name", "Chart No.", "Language", "Pending Lab", "Remarks"], 
+            (item, index) => {
+                let lines = `${index + 1}. ${item.patient} (${item.chart}) \n • Language: ${item.lang} \n • Pending Lab: ${item.lab} \n • Remarks: ${item.remarks} \n`;
+                return { htmlVals: [item.callDate, item.patient, item.chart, item.lang, item.lab, item.remarks], textLines: lines };
+            });
+        eodHTML += secD.html; plainTextEOD += secD.text;
+
+        // E. PREOPERATIVE LAB ORDERS & FACILITY CONFIRMATION (Fetched)
+        let secE = getFetchedSection("Preoperative Lab Orders & Facility Confirmation", fetchedEODData.preop, "E", 
+            ["Date", "Patient Name", "Chart No.", "Language", "Remarks"], 
+            (item, index) => {
+                let lines = `${index + 1}. ${item.patient} (${item.chart}) \n • Language: ${item.lang} \n • Remarks: ${item.remarks} \n`;
+                return { htmlVals: [item.callDate, item.patient, item.chart, item.lang, item.remarks], textLines: lines };
+            });
+        eodHTML += secE.html; plainTextEOD += secE.text;
+
+        // F, G, H, I (Manuals)
+        let secF = getManualSection("Call Insurance for Surgery Auth Follow-up", "manual-f-container", "F");
+        eodHTML += secF.html; plainTextEOD += secF.text;
+
+        let secG = getManualSection("Creating Booking Sheet", "manual-g-container", "G");
+        eodHTML += secG.html; plainTextEOD += secG.text;
+
+        let secH = getManualSection("Creating Lab Orders", "manual-h-container", "H");
+        eodHTML += secH.html; plainTextEOD += secH.text;
+
+        let secI = getManualSection("DME request creation and follow-up", "manual-i-container", "I");
+        eodHTML += secI.html; plainTextEOD += secI.text.trim(); // Trim trailing newline on the very last item
 
         eodHTML += `</div>`;
         const outputBox = document.getElementById('eod-output-box');
@@ -881,14 +1035,83 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Global Event Listener for Chart Number Searches inside manual entries
+    document.getElementById('eod-generator').addEventListener('click', function(e) {
+        const searchBtn = e.target.closest('.chart-search-btn');
+        if (searchBtn) {
+            const row = searchBtn.closest('.eod-row');
+            const chartInput = row.querySelector('.man-chart');
+            const patientInput = row.querySelector('.man-patient');
+            const chartVal = chartInput.value.trim().toUpperCase();
+            
+            if (!chartVal || !/^#HF\d{9}$/.test(chartVal)) {
+                alert("Please enter a valid 12-character Chart Number (e.g., #HF123456789) before searching.");
+                return;
+            }
+            
+            const origIcon = searchBtn.innerText;
+            searchBtn.innerText = "⏳";
+            searchBtn.disabled = true;
+            
+            google.script.run
+                .withSuccessHandler(function(name) {
+                    searchBtn.innerText = origIcon;
+                    searchBtn.disabled = false;
+                    if (name) {
+                        patientInput.value = name;
+                        patientInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    } else {
+                        alert("Patient not found in the Activity Logs database.");
+                    }
+                })
+                .withFailureHandler(function(err) {
+                    searchBtn.innerText = origIcon;
+                    searchBtn.disabled = false;
+                    alert("Error searching database.");
+                })
+                .searchPatientByChart(chartVal);
+        }
+    });
+
     document.getElementById('send-sheet-btn').addEventListener('click', function() {
-        // Send the generated plain text version with the ' | ' separators
         const reportData = document.getElementById('eod-output-box').getAttribute('data-raw-eod');
         
         if (!reportData || !reportData.trim()) {
             alert('Please generate the EOD report before sending.');
             return;
         }
+        
+        const reportDate = document.getElementById('eod-date-picker').value || "";
+        let formattedDate = reportDate;
+        if(reportDate.includes('-')) {
+            const [year, month, day] = reportDate.split('-');
+            formattedDate = `${month}/${day}/${year}`;
+        }
+        
+        const manualLogsToSync = [];
+        const scrapeManuals = (containerId, typeName) => {
+            document.querySelectorAll(`#${containerId} .eod-row`).forEach(row => {
+                const pat = row.querySelector('.man-patient').value.trim();
+                const chart = row.querySelector('.man-chart').value.trim();
+                const lang = row.querySelector('.man-lang').value.trim();
+                const clin = row.querySelector('.man-clinic').value.trim();
+                const rem = row.querySelector('.man-remarks').value.trim();
+                if(pat || chart || rem) {
+                    manualLogsToSync.push([formattedDate, pat, chart, lang, typeName, clin, rem]);
+                }
+            });
+        };
+
+        scrapeManuals('manual-c-container', "Follow up with the Doctor Office for Patient's Medical Clearance");
+        scrapeManuals('manual-f-container', 'Call Insurance for Surgery Auth Follow-up');
+        scrapeManuals('manual-g-container', 'Creating Booking Sheet');
+        scrapeManuals('manual-h-container', 'Creating Lab Orders');
+        scrapeManuals('manual-i-container', 'DME request creation and follow-up');
+
+        const payload = {
+            reportText: reportData,
+            manualLogs: manualLogsToSync
+        };
 
         const btn = this;
         const originalText = btn.innerText;
@@ -914,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     btn.style.backgroundColor = '';
                 }, 3000);
             })
-            .saveEODData(reportData);
+            .saveEODData(payload);
     });
 
     // --- NUMBER TO SPANISH CALCULATOR LOGIC --- //
