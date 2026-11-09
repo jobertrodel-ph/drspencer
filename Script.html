@@ -97,6 +97,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Clear remarks section when switching to a fresh script
             document.querySelectorAll('.remark-btn').forEach(b => b.classList.remove('active-remark'));
+            if(document.getElementById('custom-remarks-input')) {
+                document.getElementById('custom-remarks-input').value = '';
+            }
             if(document.getElementById('remarks-output')) {
                 document.getElementById('remarks-output').value = '';
             }
@@ -190,9 +193,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedRemarks.push(btn.getAttribute('data-val'));
             }
         });
+        
+        const customInput = document.getElementById('custom-remarks-input');
+        if (customInput && customInput.value.trim() !== '') {
+            selectedRemarks.push(customInput.value.trim());
+        }
+
         if(remarksOutput) {
             remarksOutput.value = selectedRemarks.join(' | ');
         }
+    }
+    
+    const customRemarksInput = document.getElementById('custom-remarks-input');
+    if (customRemarksInput) {
+        customRemarksInput.addEventListener('input', generateRemarks);
     }
 
     // --- Complex 'Schedule an Appointment' Dynamic Placeholder & Review Logic ---
@@ -378,21 +392,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
+            let newDate = "N/A";
+
             // Route payload extraction dynamically based on which UI is actually active
             if (callType === 'script-schedule') {
                 const preopClinic = document.querySelector('.sch-clinic-btn[data-target="preop"].active-ans');
                 clinic = preopClinic ? preopClinic.getAttribute('data-val') : "N/A";
-                // System prioritizes grabbing the Surgery Date for the Google Sheet, falls back to Preop Date if missing
-                rawNewDate = document.getElementById('sch-surg-date').value || document.getElementById('sch-preop-date').value;
+                
+                // Compile the multi-line Appointment Dates block
+                let apptDatesArr = [];
+                let pd = document.getElementById('sch-preop-date').value;
+                let pt = document.getElementById('sch-preop-time').value;
+                let ploc = preopClinic ? preopClinic.getAttribute('data-val') : 'TBD';
+                if (pd) apptDatesArr.push(`**Pre-op:** ${formatDate(pd)} at ${pt ? formatTime(pt) : 'TBD'} – ${ploc}`);
+                
+                let sd = document.getElementById('sch-surg-date').value;
+                if (sd) apptDatesArr.push(`**Surgery:** ${formatDate(sd)}`);
+                
+                let postOpCount = parseInt(document.getElementById('sch-postop-count').value) || 0;
+                const poLabels = ["", "First", "Second", "Third", "Fourth", "Fifth", "Sixth"];
+                for (let i = 1; i <= postOpCount; i++) {
+                    let d = document.getElementById(`sch-po${i}-date`).value;
+                    let t = document.getElementById(`sch-po${i}-time`).value;
+                    let c = document.querySelector(`.sch-clinic-btn[data-target="po${i}"].active-ans`);
+                    let loc = c ? c.getAttribute('data-val') : 'TBD';
+                    if (d) apptDatesArr.push(`**${poLabels[i]} post-op:** ${formatDate(d)} at ${t ? formatTime(t) : 'TBD'} – ${loc}`);
+                }
+                
+                newDate = apptDatesArr.length > 0 ? apptDatesArr.join('\n') : "N/A";
+
             } else {
                 const sharedClinic = document.querySelector('#grp-clinic .clinic-btn.active-ans');
                 if (sharedClinic) clinic = sharedClinic.getAttribute('data-val');
                 const dateEl = document.getElementById('input-date');
-                if (dateEl) rawNewDate = dateEl.value;
+                if (dateEl) {
+                    newDate = dateEl.value ? formatDate(dateEl.value) : "N/A";
+                }
             }
-
-            // Grab Raw Date Strings and push them through the existing MM/DD/YYYY HTML formatter
-            const newDate = rawNewDate ? formatDate(rawNewDate) : "N/A";
             
             const rawOldDate = document.getElementById('input-old-date').value;
             const oldDate = rawOldDate ? formatDate(rawOldDate) : "N/A";
@@ -434,6 +470,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (document.getElementById('chart-warning')) document.getElementById('chart-warning').classList.add('hidden');
                         
                         document.querySelectorAll('.remark-btn').forEach(b => b.classList.remove('active-remark'));
+                        if (document.getElementById('custom-remarks-input')) {
+                            document.getElementById('custom-remarks-input').value = '';
+                        }
                         document.getElementById('remarks-output').value = '';
                         
                         // Safely wipe the comprehensive Schedule script layout natively
@@ -704,7 +743,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachListenersToEOD() {
-        const eodInputs = document.querySelectorAll('#eod-generator input[type="text"], #eod-generator input[type="datetime-local"], #eod-generator input[type="date"], #eod-generator select');
+        const eodInputs = document.querySelectorAll('#eod-generator input[type="text"], #eod-generator input[type="datetime-local"], #eod-generator input[type="date"], #eod-generator select, #eod-generator textarea');
         eodInputs.forEach(input => {
             input.removeEventListener('input', inputChangeHandler);
             input.addEventListener('input', inputChangeHandler);
@@ -736,6 +775,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.target.value === 'EN') e.target.classList.add('color-en');
             else if (e.target.value === 'ES') e.target.classList.add('color-es');
             else e.target.classList.add('color-na');
+        } else if (e.target.tagName === 'TEXTAREA') {
+            e.target.textContent = e.target.value;
         } else {
             e.target.setAttribute('value', e.target.value);
         }
@@ -827,6 +868,16 @@ document.addEventListener('DOMContentLoaded', function() {
             .fetchEODData(sheetDateStr);
     });
 
+    function applyHTMLBolding(text) {
+        if (!text) return "";
+        return String(text).replace(/(Pre-op:|Surgery:|First post-op:|Second post-op:|Third post-op:|Fourth post-op:|Fifth post-op:|Sixth post-op:)/g, '<b>$1</b>');
+    }
+
+    function applyMarkdownBolding(text) {
+        if (!text) return "";
+        return String(text).replace(/(Pre-op:|Surgery:|First post-op:|Second post-op:|Third post-op:|Fourth post-op:|Fifth post-op:|Sixth post-op:)/g, '**$1**');
+    }
+
     function renderFetchedData() {
         const contSched = document.getElementById('auto-scheduled-container');
         const contChange = document.getElementById('auto-changed-container');
@@ -847,8 +898,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         contSched.innerHTML = getTableHTML(
             fetchedEODData.scheduled, 
-            ["Patient Name", "Chart No.", "Language", "Clinic", "Date Set", "Remarks"], 
-            (item) => `<tr><td>${item.patient}</td><td>${item.chart}</td><td>${item.lang}</td><td>${item.clinic}</td><td>${item.date}</td><td>${item.remarks}</td></tr>`
+            ["Patient Name", "Chart No.", "Language", "Clinic", "Appointment Type & Date", "Remarks"], 
+            (item) => `<tr><td>${item.patient}</td><td>${item.chart}</td><td>${item.lang}</td><td>${item.clinic}</td><td style="white-space: pre-wrap;">${applyHTMLBolding(item.date)}</td><td>${applyHTMLBolding(item.remarks)}</td></tr>`
         );
         
         contChange.innerHTML = getTableHTML(
@@ -926,9 +977,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     const clin = row.querySelector('.man-clinic').value.trim();
                     const rem = row.querySelector('.man-remarks').value.trim();
 
-                    sHTML += `<tr><td ${tdStyle}>${reportDate}</td><td ${tdStyle}>${pat}</td><td ${tdStyle}>${chart}</td><td ${tdStyle}>${lang}</td><td ${tdStyle}>${clin}</td><td ${tdStyle}>${rem}</td></tr>`;
+                    const chartHTML = chart.replace(/\n/g, '<br>');
+                    const remHTML = rem.replace(/\n/g, '<br>');
+
+                    sHTML += `<tr><td ${tdStyle}>${reportDate}</td><td ${tdStyle}>${pat}</td><td ${tdStyle}>${chartHTML}</td><td ${tdStyle}>${lang}</td><td ${tdStyle}>${clin}</td><td ${tdStyle}>${remHTML}</td></tr>`;
                     
-                    const chartStr = chart ? ` (${chart})` : "";
+                    const chartStr = chart ? ` (${chart.replace(/\n/g, ' ')})` : "";
                     sText += `${index + 1}. ${pat}${chartStr} \n`;
                     if (lang) sText += ` • Language: ${lang} \n`;
                     if (clin) sText += ` • Clinic: ${clin} \n`;
@@ -942,10 +996,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // A. SURGERY SCHEDULING (Fetched)
         let secA = getFetchedSection("Surgery Scheduling", fetchedEODData.scheduled, "A", 
-            ["Date", "Patient Name", "Chart No.", "Language", "Clinic", "Date Set", "Remarks"], 
+            ["Date", "Patient Name", "Chart No.", "Language", "Clinic", "Appointment Type & Date", "Remarks"], 
             (item, index) => {
-                let lines = `${index + 1}. ${item.patient} (${item.chart}) \n • Language: ${item.lang} \n • Clinic: ${item.clinic} \n • Date Set: ${item.date} \n • Remarks: ${item.remarks} \n`;
-                return { htmlVals: [item.callDate, item.patient, item.chart, item.lang, item.clinic, item.date, item.remarks], textLines: lines };
+                let formattedDatesHTML = item.date ? applyHTMLBolding(item.date).replace(/\n/g, '<br>') : '';
+                let mdDates = applyMarkdownBolding(item.date);
+                
+                let htmlRemarks = applyHTMLBolding(item.remarks);
+                let mdRemarks = applyMarkdownBolding(item.remarks);
+
+                let lines = `${index + 1}. ${item.patient} (${item.chart}) \n • Language: ${item.lang} \n • Clinic: ${item.clinic} \n • Appointment Type & Date:\n${mdDates} \n • Remarks: ${mdRemarks} \n`;
+                return { htmlVals: [item.callDate, item.patient, item.chart, item.lang, item.clinic, formattedDatesHTML, htmlRemarks], textLines: lines };
             });
         eodHTML += secA.html; plainTextEOD += secA.text;
 
@@ -1032,44 +1092,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalText = btn.innerText;
             btn.innerText = "Table Copied!";
             setTimeout(() => btn.innerText = originalText, 2000);
-        }
-    });
-
-    // Global Event Listener for Chart Number Searches inside manual entries
-    document.getElementById('eod-generator').addEventListener('click', function(e) {
-        const searchBtn = e.target.closest('.chart-search-btn');
-        if (searchBtn) {
-            const row = searchBtn.closest('.eod-row');
-            const chartInput = row.querySelector('.man-chart');
-            const patientInput = row.querySelector('.man-patient');
-            const chartVal = chartInput.value.trim().toUpperCase();
-            
-            if (!chartVal || !/^#HF\d{9}$/.test(chartVal)) {
-                alert("Please enter a valid 12-character Chart Number (e.g., #HF123456789) before searching.");
-                return;
-            }
-            
-            const origIcon = searchBtn.innerText;
-            searchBtn.innerText = "⏳";
-            searchBtn.disabled = true;
-            
-            google.script.run
-                .withSuccessHandler(function(name) {
-                    searchBtn.innerText = origIcon;
-                    searchBtn.disabled = false;
-                    if (name) {
-                        patientInput.value = name;
-                        patientInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    } else {
-                        alert("Patient not found in the Activity Logs database.");
-                    }
-                })
-                .withFailureHandler(function(err) {
-                    searchBtn.innerText = origIcon;
-                    searchBtn.disabled = false;
-                    alert("Error searching database.");
-                })
-                .searchPatientByChart(chartVal);
         }
     });
 

@@ -565,6 +565,11 @@
                             <button class="ans-btn remark-btn" data-val="Patient will call back">Patient will call back</button>
                         </div>
                     </div>
+
+                    <div class="remarks-group" style="width: 100%; max-width: 600px; margin: 15px auto 0 auto;">
+                        <span class="remarks-group-label">Custom Remarks</span>
+                        <textarea id="custom-remarks-input" placeholder="Type any additional custom remarks here..." class="custom-remarks-box" rows="2"></textarea>
+                    </div>
                     
                     <div class="remarks-output-container">
                         <label style="font-size: 13px; font-weight: 600; color: #34495e;">Generated Remarks:</label>
@@ -724,10 +729,7 @@
             </div>
             <div class="input-wrapper chart-wrapper">
                 <label>Chart No.</label>
-                <div class="chart-input-group">
-                    <input type="text" class="man-chart" placeholder="#HF...">
-                    <button type="button" class="chart-search-btn" title="Search Database">🔍</button>
-                </div>
+                <textarea class="man-chart" placeholder="#HF..." rows="1" style="resize: vertical;"></textarea>
             </div>
             <div class="input-wrapper lang-wrapper">
                 <label>Lang</label>
@@ -743,7 +745,7 @@
             </div>
             <div class="input-wrapper remarks-wrapper">
                 <label>Remarks</label>
-                <input type="text" class="man-remarks">
+                <textarea class="man-remarks" rows="1" style="resize: vertical;"></textarea>
             </div>
             <button class="remove-btn" type="button" title="Remove Entry">X</button>
         </div>

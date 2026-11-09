@@ -28,6 +28,42 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
+function appendRowWithRichText(sheet, rowData) {
+  var plainRow = [];
+  for (var i = 0; i < rowData.length; i++) {
+    var text = String(rowData[i] || "");
+    plainRow.push(text.replace(/\*\*/g, ""));
+  }
+  sheet.appendRow(plainRow);
+  
+  var lastRow = sheet.getLastRow();
+  var range = sheet.getRange(lastRow, 1, 1, rowData.length);
+  var richTextValues = [];
+  var boldStyle = SpreadsheetApp.newTextStyle().setBold(true).build();
+  
+  for (var i = 0; i < rowData.length; i++) {
+    var text = String(rowData[i] || "");
+    if (text.indexOf("**") > -1) {
+      var plainText = text.replace(/\*\*/g, "");
+      var builder = SpreadsheetApp.newRichTextValue().setText(plainText);
+      
+      var regex = /\*\*(.*?)\*\*/g;
+      var match;
+      var offset = 0;
+      while ((match = regex.exec(text)) !== null) {
+        var start = match.index - offset;
+        var end = start + match[1].length;
+        builder.setTextStyle(start, end, boldStyle);
+        offset += 4;
+      }
+      richTextValues.push(builder.build());
+    } else {
+      richTextValues.push(SpreadsheetApp.newRichTextValue().setText(text.replace(/\*\*/g, "")).build());
+    }
+  }
+  range.setRichTextValues([richTextValues]);
+}
+
 function saveEODData(payload) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -38,7 +74,7 @@ function saveEODData(payload) {
     }
     
     var dateOnly = Utilities.formatDate(new Date(), "GMT-05:00", "MM/dd/yyyy");
-    sheet.appendRow([dateOnly, payload.reportText]);
+    appendRowWithRichText(sheet, [dateOnly, payload.reportText]);
     
     // Check and Append Manual Logs to Activity Logs worksheet
     var callLogsSheet = ss.getSheetByName("Activity Logs");
@@ -57,7 +93,7 @@ function saveEODData(payload) {
           }
         }
         if (!isDuplicate) {
-          callLogsSheet.appendRow(log);
+          appendRowWithRichText(callLogsSheet, log);
           existingData.push(log); // Temporarily cache to prevent dupes within the same batch submission
         }
       });
@@ -102,10 +138,10 @@ function logCallDisposition(payload) {
     // Construct the payload row based on the specific Call Type
     if (payload.callType === "script-schedule") {
       sheetName = "Schedule an Appointment";
-      readableCallType = sheetName;
+      readableCallType = "Surgery Scheduling";
       rowData = [dateOnly, payload.patientName, payload.chartNo, payload.language, payload.newDate, payload.clinic, payload.remarks];
       
-      if (payload.newDate && payload.newDate !== "N/A") extraRemarks.push("Target/New Date: " + payload.newDate);
+      if (payload.newDate && payload.newDate !== "N/A") extraRemarks.push("Appointment Dates:\n" + payload.newDate);
       
     } else if (payload.callType === "script-change") {
       sheetName = "Change Appointment Date";
@@ -138,7 +174,7 @@ function logCallDisposition(payload) {
     }
 
     // Append to respective separate sheet
-    sheet.appendRow(rowData);
+    appendRowWithRichText(sheet, rowData);
     
     // Append to "Activity Logs" all-in-one sheet
     var callLogsSheet = ss.getSheetByName("Activity Logs");
@@ -153,7 +189,7 @@ function logCallDisposition(payload) {
     }
     
     var callLogsRow = [dateOnly, payload.patientName, payload.chartNo, payload.language, readableCallType, payload.clinic, combinedRemarks];
-    callLogsSheet.appendRow(callLogsRow);
+    appendRowWithRichText(callLogsSheet, callLogsRow);
 
     return "Success";
   } catch (e) {
