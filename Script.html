@@ -18,6 +18,10 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 stickyBanner.style.display = 'flex';
             }
+
+            if (targetId === 'saved-scripts' && typeof ensureSavedScriptsLoaded === 'function') {
+                ensureSavedScriptsLoaded();
+            }
         });
     });
 
@@ -513,39 +517,43 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    function speakText(text, langCode) {
+        if (!('speechSynthesis' in window)) {
+            alert("Text-to-Speech is not supported in this browser.");
+            return;
+        }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = langCode || 'es-MX';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.2;
+
+        if (synthVoices.length === 0) synthVoices = window.speechSynthesis.getVoices();
+
+        if (utterance.lang.startsWith('es')) {
+            const femaleVoice = synthVoices.find(v =>
+                v.lang.startsWith('es') &&
+                (v.name.toLowerCase().includes('female') ||
+                 v.name.includes('Monica') ||
+                 v.name.includes('Paulina') ||
+                 v.name.includes('Sabina') ||
+                 v.name.includes('Elena') ||
+                 v.name.includes('Laura'))
+            );
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+            }
+        }
+
+        window.speechSynthesis.speak(utterance);
+    }
+
     document.querySelectorAll('.tts-btn').forEach(btn => {
+        if (btn.id === 'calc-tts-btn') return;
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             let text = this.parentElement.textContent.replace('🔊', '').trim().replace(/^\d+\.\s*/, '').trim();
-            
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'es-MX';
-                utterance.rate = 0.9;
-                utterance.pitch = 1.2; // Slightly raising pitch induces a more feminine tone natively
-                
-                if (synthVoices.length === 0) synthVoices = window.speechSynthesis.getVoices();
-                
-                // Intentionally search the local OS for known female Spanish profiles
-                const femaleVoice = synthVoices.find(v => 
-                    v.lang.startsWith('es') && 
-                    (v.name.toLowerCase().includes('female') || 
-                     v.name.includes('Monica') || 
-                     v.name.includes('Paulina') || 
-                     v.name.includes('Sabina') || 
-                     v.name.includes('Elena') ||
-                     v.name.includes('Laura'))
-                );
-                
-                if (femaleVoice) {
-                    utterance.voice = femaleVoice;
-                }
-                
-                window.speechSynthesis.speak(utterance);
-            } else {
-                alert("Text-to-Speech is not supported in this browser.");
-            }
+            speakText(text, 'es-MX');
         });
     });
 
@@ -1274,17 +1282,319 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Mode Switcher Logic
+    let lastAiTargetLang = 'es';
+    let lastAiTranslation = null;
+    let savedScriptsCache = [];
+    let savedScriptsLoaded = false;
+
+    function formatEstimatedCost(usd) {
+        const val = Number(usd) || 0;
+        if (val <= 0) return '$0.00';
+        if (val < 0.0001) return '<$0.0001';
+        return '~$' + val.toFixed(5);
+    }
+
+    function setAiOutputButtonsEnabled(enabled) {
+        const saveBtn = document.getElementById('ai-save-script-btn');
+        const copyBtn = document.getElementById('ai-copy-btn');
+        if (saveBtn) saveBtn.disabled = !enabled;
+        if (copyBtn) copyBtn.disabled = !enabled;
+    }
+
+    function renderSavedScripts() {
+        const listEl = document.getElementById('saved-scripts-list');
+        const emptyEl = document.getElementById('saved-scripts-empty');
+        const statusEl = document.getElementById('saved-scripts-status');
+        const searchEl = document.getElementById('saved-scripts-search');
+        const filterEl = document.getElementById('saved-scripts-filter');
+        const template = document.getElementById('saved-script-card-template');
+        if (!listEl || !template) return;
+
+        const query = searchEl ? searchEl.value.trim().toLowerCase() : '';
+        const filterVal = filterEl ? filterEl.value : 'all';
+
+        const filtered = savedScriptsCache.filter(item => {
+            const matchesFilter = filterVal === 'all' || item.targetLang === filterVal;
+            if (!matchesFilter) return false;
+            if (!query) return true;
+            return (item.title || '').toLowerCase().includes(query) ||
+                (item.sourceText || '').toLowerCase().includes(query) ||
+                (item.translatedText || '').toLowerCase().includes(query);
+        });
+
+        listEl.replaceChildren();
+
+        if (statusEl) {
+            statusEl.textContent = filtered.length + ' of ' + savedScriptsCache.length + ' saved script(s)';
+        }
+
+        if (filtered.length === 0) {
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            return;
+        }
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        filtered.forEach(item => {
+            const clone = template.content.cloneNode(true);
+            const card = clone.querySelector('.saved-script-card');
+            card.setAttribute('data-id', item.id);
+
+            const titleEl = clone.querySelector('.saved-script-title');
+            const metaEl = clone.querySelector('.saved-script-meta');
+            const translatedEl = clone.querySelector('.saved-script-translated-line');
+            const sourceEl = clone.querySelector('.saved-script-source-line');
+            const viewEl = clone.querySelector('.saved-script-view');
+            const editFormEl = clone.querySelector('.saved-script-edit-form');
+            const editTitleEl = clone.querySelector('.edit-script-title');
+            const editLangEl = clone.querySelector('.edit-script-target-lang');
+            const editTransEl = clone.querySelector('.edit-script-translated');
+            const editSourceEl = clone.querySelector('.edit-script-source');
+
+            const langTag = item.targetLang === 'en' ? 'English' : 'Spanish';
+            titleEl.textContent = item.title || 'Untitled Script';
+            metaEl.textContent = langTag + ' • ' + (item.model || 'AI') + (item.createdAt ? ' • ' + item.createdAt : '');
+            translatedEl.textContent = item.translatedText;
+            sourceEl.textContent = 'Original: ' + item.sourceText;
+
+            editTitleEl.value = item.title || '';
+            editLangEl.value = item.targetLang || 'es';
+            editTransEl.value = item.translatedText || '';
+            editSourceEl.value = item.sourceText || '';
+
+            clone.querySelector('.saved-script-tts-btn').addEventListener('click', function() {
+                const ttsLang = item.targetLang === 'en' ? 'en-US' : 'es-MX';
+                speakText(item.translatedText, ttsLang);
+            });
+
+            clone.querySelector('.saved-script-copy-btn').addEventListener('click', function() {
+                const btn = this;
+                navigator.clipboard.writeText(item.translatedText).then(() => {
+                    const prev = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => btn.textContent = prev, 1800);
+                });
+            });
+
+            clone.querySelector('.saved-script-edit-btn').addEventListener('click', function() {
+                viewEl.classList.add('hidden');
+                editFormEl.classList.remove('hidden');
+            });
+
+            clone.querySelector('.cancel-edit-script-btn').addEventListener('click', function() {
+                editTitleEl.value = item.title || '';
+                editLangEl.value = item.targetLang || 'es';
+                editTransEl.value = item.translatedText || '';
+                editSourceEl.value = item.sourceText || '';
+                editFormEl.classList.add('hidden');
+                viewEl.classList.remove('hidden');
+            });
+
+            clone.querySelector('.save-edit-script-btn').addEventListener('click', function() {
+                const saveEditBtn = this;
+                const updatedPayload = {
+                    id: item.id,
+                    title: editTitleEl.value.trim() || 'Untitled Script',
+                    targetLang: editLangEl.value,
+                    translatedText: editTransEl.value.trim(),
+                    sourceText: editSourceEl.value.trim()
+                };
+                if (!updatedPayload.translatedText || !updatedPayload.sourceText) {
+                    alert('Both translated script and original text are required.');
+                    return;
+                }
+                saveEditBtn.disabled = true;
+                saveEditBtn.textContent = 'Saving...';
+                google.script.run
+                    .withSuccessHandler(function() {
+                        item.title = updatedPayload.title;
+                        item.targetLang = updatedPayload.targetLang;
+                        item.translatedText = updatedPayload.translatedText;
+                        item.sourceText = updatedPayload.sourceText;
+                        renderSavedScripts();
+                    })
+                    .withFailureHandler(function(err) {
+                        saveEditBtn.disabled = false;
+                        saveEditBtn.textContent = 'Save Changes';
+                        alert('Error updating script: ' + err.message);
+                    })
+                    .updateSavedScriptInDb(updatedPayload);
+            });
+
+            clone.querySelector('.saved-script-delete-btn').addEventListener('click', function() {
+                if (!confirm('Delete "' + (item.title || 'this script') + '" from Saved Scripts?')) return;
+                const delBtn = this;
+                delBtn.disabled = true;
+                delBtn.textContent = '...';
+                card.classList.add('removing-card');
+                google.script.run
+                    .withSuccessHandler(function() {
+                        savedScriptsCache = savedScriptsCache.filter(s => s.id !== item.id);
+                        renderSavedScripts();
+                    })
+                    .withFailureHandler(function(err) {
+                        card.classList.remove('removing-card');
+                        delBtn.disabled = false;
+                        delBtn.textContent = 'Delete';
+                        alert('Error deleting script: ' + err.message);
+                    })
+                    .deleteSavedScriptFromDb(item.id);
+            });
+
+            listEl.appendChild(clone);
+        });
+    }
+
+    function loadSavedScripts() {
+        const statusEl = document.getElementById('saved-scripts-status');
+        if (statusEl) statusEl.textContent = 'Loading saved scripts from database...';
+        google.script.run
+            .withSuccessHandler(function(scripts) {
+                savedScriptsCache = Array.isArray(scripts) ? scripts : [];
+                savedScriptsLoaded = true;
+                renderSavedScripts();
+            })
+            .withFailureHandler(function(err) {
+                if (statusEl) statusEl.textContent = 'Error loading saved scripts: ' + err.message;
+            })
+            .getSavedScripts();
+    }
+
+    function ensureSavedScriptsLoaded() {
+        if (!savedScriptsLoaded) {
+            loadSavedScripts();
+        } else {
+            renderSavedScripts();
+        }
+    }
+
+    document.getElementById('saved-scripts-search').addEventListener('input', renderSavedScripts);
+    document.getElementById('saved-scripts-filter').addEventListener('change', renderSavedScripts);
+    document.getElementById('refresh-saved-scripts-btn').addEventListener('click', loadSavedScripts);
+
+    document.getElementById('toggle-new-script-btn').addEventListener('click', function() {
+        document.getElementById('new-script-form').classList.toggle('hidden');
+    });
+
+    document.getElementById('cancel-manual-script-btn').addEventListener('click', function() {
+        document.getElementById('new-script-form').classList.add('hidden');
+    });
+
+    document.getElementById('save-manual-script-btn').addEventListener('click', function() {
+        const title = document.getElementById('new-script-title').value.trim();
+        const targetLang = document.getElementById('new-script-target-lang').value;
+        const sourceText = document.getElementById('new-script-source').value.trim();
+        const translatedText = document.getElementById('new-script-translated').value.trim();
+
+        if (!sourceText || !translatedText) {
+            alert('Please fill in both Original Text and Translated Script.');
+            return;
+        }
+
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        google.script.run
+            .withSuccessHandler(function(savedItem) {
+                btn.disabled = false;
+                btn.textContent = 'Save Script';
+                document.getElementById('new-script-title').value = '';
+                document.getElementById('new-script-source').value = '';
+                document.getElementById('new-script-translated').value = '';
+                document.getElementById('new-script-form').classList.add('hidden');
+                savedScriptsCache.unshift(savedItem);
+                savedScriptsLoaded = true;
+                renderSavedScripts();
+            })
+            .withFailureHandler(function(err) {
+                btn.disabled = false;
+                btn.textContent = 'Save Script';
+                alert('Error saving script: ' + err.message);
+            })
+            .saveScriptToDb({
+                title: title,
+                direction: targetLang === 'en' ? 'es-en' : 'en-es',
+                sourceText: sourceText,
+                translatedText: translatedText,
+                targetLang: targetLang,
+                model: 'Manual'
+            });
+    });
+
+    loadSavedScripts();
+
+    function setAiNotice(message, type) {
+        const noticeEl = document.getElementById('ai-status-notice');
+        if (!noticeEl) return;
+        noticeEl.classList.remove('hidden', 'notice-free', 'notice-gemini-free', 'notice-paid', 'notice-error');
+        noticeEl.replaceChildren();
+        if (!message) {
+            noticeEl.classList.add('hidden');
+            return;
+        }
+        if (type) noticeEl.classList.add(type);
+        noticeEl.textContent = message;
+    }
+
+    function setAiLayerTrace(layerStatuses, boxType, stopNote) {
+        const noticeEl = document.getElementById('ai-status-notice');
+        const template = document.getElementById('ai-layer-status-template');
+        if (!noticeEl) return;
+        noticeEl.classList.remove('hidden', 'notice-free', 'notice-gemini-free', 'notice-paid', 'notice-error');
+        noticeEl.replaceChildren();
+
+        if (!Array.isArray(layerStatuses) || layerStatuses.length === 0) {
+            noticeEl.classList.add('hidden');
+            return;
+        }
+
+        if (boxType) noticeEl.classList.add(boxType);
+
+        if (template) {
+            layerStatuses.forEach(item => {
+                const clone = template.content.cloneNode(true);
+                const badgeEl = clone.querySelector('.ai-layer-badge');
+                const textEl = clone.querySelector('.ai-layer-text');
+                const isOk = item.status === 'success';
+                badgeEl.textContent = isOk ? '✔' : '✖';
+                badgeEl.classList.add(isOk ? 'status-ok' : 'status-fail');
+                textEl.textContent = 'L' + item.layer + ' (' + item.name + '): ' + item.detail;
+                noticeEl.appendChild(clone);
+            });
+
+            if (stopNote) {
+                const cloneNote = template.content.cloneNode(true);
+                const rowEl = cloneNote.querySelector('.ai-layer-row');
+                const badgeEl = cloneNote.querySelector('.ai-layer-badge');
+                const textEl = cloneNote.querySelector('.ai-layer-text');
+                rowEl.classList.add('ai-layer-stop-note');
+                badgeEl.textContent = '•';
+                textEl.textContent = stopNote;
+                noticeEl.appendChild(cloneNote);
+            }
+        }
+    }
+
     document.getElementById('translator-mode').addEventListener('change', function() {
         const mode = this.value;
         const textEl = document.getElementById('calc-spanish-text');
+        const sidebarEl = document.getElementById('calc-sidebar');
+        const aiActionsEl = document.getElementById('ai-output-actions');
+        const outputAreaEl = document.getElementById('calc-output-area');
         
-        // Hide all inputs
         document.querySelectorAll('.trans-input-group').forEach(el => el.classList.add('hidden'));
-        // Show selected input
         document.getElementById(`mode-${mode}-input`).classList.remove('hidden');
+        setAiNotice('', null);
+        textEl.classList.remove('ai-loading-text');
+        if (outputAreaEl) outputAreaEl.scrollTop = 0;
+
+        if (sidebarEl) {
+            sidebarEl.classList.toggle('ai-mode-active', mode === 'ai');
+        }
+        if (aiActionsEl) {
+            aiActionsEl.classList.toggle('hidden', mode !== 'ai');
+        }
         
-        // Hide/Show physical calculator keypad
         const keypad = document.getElementById('calc-keypad');
         if (mode === 'number') {
             keypad.classList.remove('hidden');
@@ -1295,10 +1605,136 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('trans-date-input').value = "";
             document.getElementById('trans-time-input').value = "";
             document.getElementById('trans-datetime-input').value = "";
+            if (mode === 'ai') {
+                lastAiTranslation = null;
+                setAiOutputButtonsEnabled(false);
+                document.getElementById('trans-ai-input').focus();
+            }
         }
     });
 
-    // Date/Time Listeners
+    function runAiTranslation() {
+        const inputEl = document.getElementById('trans-ai-input');
+        const dirEl = document.getElementById('ai-direction');
+        const btnEl = document.getElementById('ai-translate-btn');
+        const textEl = document.getElementById('calc-spanish-text');
+        const outputAreaEl = document.getElementById('calc-output-area');
+        const rawText = inputEl.value.trim();
+
+        if (!rawText) {
+            setAiNotice('Please type a word or sentence first.', 'notice-error');
+            return;
+        }
+
+        btnEl.disabled = true;
+        btnEl.textContent = 'Translating...';
+        textEl.classList.add('ai-loading-text');
+        textEl.innerText = 'Trying Free AI...';
+        if (outputAreaEl) outputAreaEl.scrollTop = 0;
+        lastAiTranslation = null;
+        setAiOutputButtonsEnabled(false);
+        setAiNotice('', null);
+
+        google.script.run
+            .withSuccessHandler(function(res) {
+                btnEl.disabled = false;
+                btnEl.textContent = 'Translate with AI';
+                textEl.classList.remove('ai-loading-text');
+                if (outputAreaEl) outputAreaEl.scrollTop = 0;
+
+                if (!res || res.ok === false) {
+                    textEl.innerText = 'Translation failed across all checked layers.';
+                    lastAiTranslation = null;
+                    setAiOutputButtonsEnabled(false);
+                    setAiLayerTrace(res ? res.layerStatuses : [], 'notice-error', '');
+                    return;
+                }
+
+                textEl.innerText = res.translatedText;
+                lastAiTargetLang = res.targetLang || 'es';
+
+                lastAiTranslation = {
+                    sourceText: rawText,
+                    translatedText: res.translatedText,
+                    direction: dirEl.value,
+                    targetLang: lastAiTargetLang,
+                    model: res.model || 'AI'
+                };
+                setAiOutputButtonsEnabled(true);
+
+                if (res.layer === 1) {
+                    setAiLayerTrace(res.layerStatuses, 'notice-free', 'Stopped here — Gemini Free & Paid tiers were not checked.');
+                } else if (res.layer === 2) {
+                    setAiLayerTrace(res.layerStatuses, 'notice-gemini-free', 'Stopped here — Paid tier was not checked.');
+                } else {
+                    setAiLayerTrace(res.layerStatuses, 'notice-paid', '');
+                }
+            })
+            .withFailureHandler(function(error) {
+                btnEl.disabled = false;
+                btnEl.textContent = 'Translate with AI';
+                textEl.classList.remove('ai-loading-text');
+                textEl.innerText = '...';
+                lastAiTranslation = null;
+                setAiOutputButtonsEnabled(false);
+                setAiNotice(error.message || 'Translation failed.', 'notice-error');
+            })
+            .translateWithAI(rawText, dirEl.value);
+    }
+
+    document.getElementById('ai-translate-btn').addEventListener('click', runAiTranslation);
+
+    document.getElementById('ai-copy-btn').addEventListener('click', function() {
+        if (!lastAiTranslation || !lastAiTranslation.translatedText) return;
+        const btn = this;
+        navigator.clipboard.writeText(lastAiTranslation.translatedText).then(() => {
+            const prev = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = prev, 1800);
+        });
+    });
+
+    document.getElementById('ai-save-script-btn').addEventListener('click', function() {
+        if (!lastAiTranslation || !lastAiTranslation.translatedText) return;
+        const btn = this;
+        const payload = {
+            sourceText: lastAiTranslation.sourceText,
+            translatedText: lastAiTranslation.translatedText,
+            direction: lastAiTranslation.direction,
+            targetLang: lastAiTranslation.targetLang,
+            model: lastAiTranslation.model
+        };
+
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        google.script.run
+            .withSuccessHandler(function(savedItem) {
+                savedScriptsCache.unshift(savedItem);
+                savedScriptsLoaded = true;
+                renderSavedScripts();
+                btn.textContent = 'Saved ✔';
+                setAiNotice('Saved to "Saved Scripts" database!', 'notice-free');
+                setTimeout(() => {
+                    btn.textContent = 'Save to Script';
+                    btn.disabled = !lastAiTranslation;
+                }, 2200);
+            })
+            .withFailureHandler(function(err) {
+                btn.textContent = 'Save to Script';
+                btn.disabled = false;
+                setAiNotice('Failed to save script: ' + err.message, 'notice-error');
+            })
+            .saveScriptToDb(payload);
+    });
+
+    document.getElementById('trans-ai-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            runAiTranslation();
+        }
+    });
+
     document.getElementById('trans-date-input').addEventListener('input', function() {
         const textEl = document.getElementById('calc-spanish-text');
         textEl.innerText = this.value ? formatSpanishDate(this.value) : '...';
@@ -1323,33 +1759,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Calculator Text-To-Speech Output
     document.getElementById('calc-tts-btn').addEventListener('click', function(e) {
         e.preventDefault();
-        let text = document.getElementById('calc-spanish-text').innerText;
-        
-        if ('speechSynthesis' in window && text !== '' && text !== '...') {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'es-MX';
-            utterance.rate = 0.9;
-            utterance.pitch = 1.2; 
-            
-            if (synthVoices.length === 0) synthVoices = window.speechSynthesis.getVoices();
-            
-            const femaleVoice = synthVoices.find(v => 
-                v.lang.startsWith('es') && 
-                (v.name.toLowerCase().includes('female') || 
-                 v.name.includes('Monica') || v.name.includes('Paulina') || 
-                 v.name.includes('Sabina') || v.name.includes('Elena') || v.name.includes('Laura'))
-            );
-            
-            if (femaleVoice) {
-                utterance.voice = femaleVoice;
-            }
-            
-            window.speechSynthesis.speak(utterance);
-        }
+        const textEl = document.getElementById('calc-spanish-text');
+        const text = textEl.innerText;
+        if (!text || text === '...' || text === 'Trying Free AI...') return;
+
+        const mode = document.getElementById('translator-mode').value;
+        const lang = (mode === 'ai' && lastAiTargetLang === 'en') ? 'en-US' : 'es-MX';
+        speakText(text, lang);
     });
 });
 </script>

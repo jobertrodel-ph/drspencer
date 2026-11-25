@@ -16,6 +16,7 @@
         
         <aside class="sidebar">
             <button class="tab-btn active" data-target="outbounds">Outbound Scripts</button>
+            <button class="tab-btn" data-target="saved-scripts">Saved Scripts</button>
             <button class="tab-btn" data-target="eod-generator">EOD Report Generator</button>
         </aside>
 
@@ -583,6 +584,54 @@
 
             </div>
 
+            <div id="saved-scripts" class="tab-content">
+                <h2>Saved Scripts</h2>
+
+                <div class="saved-scripts-toolbar">
+                    <input type="text" id="saved-scripts-search" class="saved-scripts-search" placeholder="Search saved scripts by title, English, or Spanish...">
+                    <select id="saved-scripts-filter" class="saved-scripts-filter">
+                        <option value="all">All Directions</option>
+                        <option value="es">Spanish Output</option>
+                        <option value="en">English Output</option>
+                    </select>
+                    <button id="toggle-new-script-btn" class="add-btn" type="button">+ New Script</button>
+                    <button id="refresh-saved-scripts-btn" class="secondary-btn saved-refresh-btn" type="button">Refresh</button>
+                </div>
+
+                <div id="new-script-form" class="new-script-form hidden">
+                    <h3>Add Custom Saved Script</h3>
+                    <div class="form-grid" style="margin-bottom: 12px;">
+                        <div class="input-group">
+                            <label>Script Title</label>
+                            <input type="text" id="new-script-title" placeholder="e.g., Pre-Op Fasting Reminder">
+                        </div>
+                        <div class="input-group">
+                            <label>Target Language</label>
+                            <select id="new-script-target-lang">
+                                <option value="es">Spanish</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 12px;">
+                        <label>Original / Reference Text</label>
+                        <textarea id="new-script-source" class="custom-remarks-box" rows="2" placeholder="Original phrase or English reference..."></textarea>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 12px;">
+                        <label>Translated Script</label>
+                        <textarea id="new-script-translated" class="custom-remarks-box" rows="3" placeholder="Translated script to read/speak..."></textarea>
+                    </div>
+                    <div class="saved-script-edit-actions">
+                        <button id="save-manual-script-btn" class="send-btn" type="button">Save Script</button>
+                        <button id="cancel-manual-script-btn" class="secondary-btn" type="button">Cancel</button>
+                    </div>
+                </div>
+
+                <div id="saved-scripts-status" class="saved-scripts-status">Loading saved scripts...</div>
+                <div id="saved-scripts-list" class="saved-scripts-list"></div>
+                <p id="saved-scripts-empty" class="empty-msg hidden">No saved scripts yet. Translate text in the AI Translator and click "Save to Script", or click "+ New Script".</p>
+            </div>
+
             <div id="eod-generator" class="tab-content">
                 <h2>End of Day (EOD) Report Generator</h2>
                 
@@ -669,8 +718,7 @@
 
         </section>
 
-        <!-- Spanish Translator Sidebar -->
-        <aside class="calc-sidebar">
+        <aside class="calc-sidebar" id="calc-sidebar">
             <h3 class="calc-title">Spanish Translator</h3>
             
             <div style="padding: 10px; background-color: #ecf0f1; border-bottom: 1px solid #bdc3c7;">
@@ -679,6 +727,7 @@
                     <option value="date">Date to Spanish</option>
                     <option value="time">Time to Spanish</option>
                     <option value="datetime">Date & Time to Spanish</option>
+                    <option value="ai">AI Translator</option>
                 </select>
             </div>
 
@@ -695,11 +744,25 @@
                 <div id="mode-datetime-input" class="trans-input-group hidden">
                     <input type="datetime-local" id="trans-datetime-input" class="trans-date-time-box">
                 </div>
+                <div id="mode-ai-input" class="trans-input-group hidden">
+                    <select id="ai-direction" class="ai-direction-select">
+                        <option value="auto">Auto-detect (EN ⇄ ES)</option>
+                        <option value="en-es">English → Spanish</option>
+                        <option value="es-en">Spanish → English</option>
+                    </select>
+                    <textarea id="trans-ai-input" class="trans-ai-box" rows="3" placeholder="Type any word or sentence..."></textarea>
+                    <button id="ai-translate-btn" class="ai-translate-btn" type="button">Translate with AI</button>
+                </div>
                 
-                <div class="calc-output-area">
+                <div class="calc-output-area" id="calc-output-area">
                     <p id="calc-spanish-text" class="calc-spanish-text">cero</p>
                     <button class="tts-btn calc-tts" id="calc-tts-btn" title="Listen to pronunciation">🔊</button>
                 </div>
+                <div id="ai-output-actions" class="ai-output-actions hidden">
+                    <button id="ai-copy-btn" class="ai-secondary-action-btn" type="button" disabled>Copy</button>
+                    <button id="ai-save-script-btn" class="ai-save-script-btn" type="button" disabled>Save to Script</button>
+                </div>
+                <div id="ai-status-notice" class="ai-status-notice hidden"></div>
             </div>
             <div class="calc-keypad" id="calc-keypad">
                 <button class="calc-btn">7</button>
@@ -748,6 +811,61 @@
                 <textarea class="man-remarks" rows="1" style="resize: vertical;"></textarea>
             </div>
             <button class="remove-btn" type="button" title="Remove Entry">X</button>
+        </div>
+    </template>
+
+    <template id="saved-script-card-template">
+        <div class="saved-script-card">
+            <div class="saved-script-header">
+                <div class="saved-script-title-wrap">
+                    <h4 class="saved-script-title"></h4>
+                    <span class="saved-script-meta"></span>
+                </div>
+                <div class="saved-script-actions">
+                    <button class="tts-btn saved-script-tts-btn" type="button" title="Listen to pronunciation">🔊</button>
+                    <button class="saved-action-btn saved-script-copy-btn" type="button">Copy</button>
+                    <button class="saved-action-btn saved-script-edit-btn" type="button">Edit</button>
+                    <button class="saved-action-btn saved-delete-btn saved-script-delete-btn" type="button">Delete</button>
+                </div>
+            </div>
+            <div class="saved-script-view">
+                <p class="spanish saved-script-translated-line"></p>
+                <p class="english saved-script-source-line"></p>
+            </div>
+            <div class="saved-script-edit-form hidden">
+                <div class="form-grid" style="margin-bottom: 10px;">
+                    <div class="input-group">
+                        <label>Title</label>
+                        <input type="text" class="edit-script-title">
+                    </div>
+                    <div class="input-group">
+                        <label>Target Language</label>
+                        <select class="edit-script-target-lang">
+                            <option value="es">Spanish</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <label>Translated Script</label>
+                    <textarea class="custom-remarks-box edit-script-translated" rows="3"></textarea>
+                </div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <label>Original / Reference Text</label>
+                    <textarea class="custom-remarks-box edit-script-source" rows="2"></textarea>
+                </div>
+                <div class="saved-script-edit-actions">
+                    <button class="send-btn save-edit-script-btn" type="button">Save Changes</button>
+                    <button class="secondary-btn cancel-edit-script-btn" type="button">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="ai-layer-status-template">
+        <div class="ai-layer-row">
+            <span class="ai-layer-badge"></span>
+            <span class="ai-layer-text"></span>
         </div>
     </template>
 

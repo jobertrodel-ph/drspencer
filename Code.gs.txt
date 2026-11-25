@@ -229,3 +229,392 @@ function fetchEODData(dateStr) {
     throw e;
   }
 }
+
+function parseAITranslationResponse(rawText, direction) {
+  var cleaned = String(rawText || "").trim();
+  var targetLang = "es";
+
+  if (direction === "es-en") {
+    targetLang = "en";
+  } else if (direction === "en-es") {
+    targetLang = "es";
+  } else {
+    var tagMatch = cleaned.match(/^\[(ES|EN)\]\s*/i);
+    if (tagMatch) {
+      targetLang = tagMatch[1].toLowerCase();
+      cleaned = cleaned.substring(tagMatch[0].length).trim();
+    }
+  }
+
+  cleaned = cleaned.replace(/^["']|["']$/g, "").trim();
+
+  return {
+    text: cleaned,
+    targetLang: targetLang
+  };
+}
+
+function translateWithAI(text, direction) {
+  var cleanText = String(text || "").trim();
+  if (!cleanText) {
+    throw new Error("Please enter text to translate.");
+  }
+  if (cleanText.length > 2000) {
+    throw new Error("Input exceeds 2000 character limit.");
+  }
+
+  var dir = direction || "auto";
+  var systemPrompt = "";
+
+  if (dir === "en-es") {
+    systemPrompt = "You are a medical interpreter for an orthopedic clinic. Translate the user's English text into natural, polite Spanish. Return ONLY the Spanish translation with no quotes or extra commentary.";
+  } else if (dir === "es-en") {
+    systemPrompt = "You are a medical interpreter for an orthopedic clinic. Translate the user's Spanish text into natural, polite English. Return ONLY the English translation with no quotes or extra commentary.";
+  } else {
+    systemPrompt = "You are a medical interpreter for an orthopedic clinic. Detect whether the user's text is English or Spanish. If English, translate it to natural, polite Spanish. If Spanish (or another language), translate it to natural, polite English. Start your response with [ES] if the output is Spanish or [EN] if the output is English, followed by a space and ONLY the translation.";
+  }
+
+  var layer1Error = "";
+
+  try {
+    var freeUrl = "https://gen.pollinations.ai/v1/chat/completions";
+    var freePayload = {
+      model: "openai-fast",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: cleanText }
+      ],
+      stream: false
+    };
+
+    var freeRes = UrlFetchApp.fetch(freeUrl, {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(freePayload),
+      muteHttpExceptions: true
+    });
+
+    var freeCode = freeRes.getResponseCode();
+    var freeBody = freeRes.getContentText();
+
+    if (freeCode === 200) {
+      var freeJson = JSON.parse(freeBody);
+      var rawOut = freeJson && freeJson.choices && freeJson.choices[0] && freeJson.choices[0].message ? freeJson.choices[0].message.content : "";
+      if (rawOut && !/^<!DOCTYPE|^<html/i.test(rawOut.trim())) {
+        var parsedFree = parseAITranslationResponse(rawOut, dir);
+        if (parsedFree.text) {
+          return {
+            ok: true,
+            translatedText: parsedFree.text,
+            targetLang: parsedFree.targetLang,
+            layer: 1,
+            provider: "Pollinations.ai",
+            model: "Pollinations.ai (Free AI)",
+            tier: "pollinations-free",
+            usedApiKey: false,
+            inputTokens: 0,
+            outputTokens: 0,
+            estimatedCostUsd: 0,
+            layerStatuses: [
+              {
+                layer: 1,
+                name: "Pollinations.ai",
+                status: "success",
+                detail: "Success • Cost: $0.00"
+              }
+            ]
+          };
+        }
+      }
+      layer1Error = "Empty or invalid free AI response";
+    } else {
+      layer1Error = "HTTP " + freeCode;
+    }
+  } catch (err1) {
+    layer1Error = err1.message || "Free endpoint unreachable";
+  }
+
+  var props = PropertiesService.getScriptProperties();
+  var freeApiKey = props.getProperty("GEMINI_FREE_API_KEY") || props.getProperty("GEMINI_API_KEY");
+  var vertexApiKey = props.getProperty("VERTEX_API_KEY");
+  var paidApiKey = props.getProperty("GEMINI_PAID_API_KEY");
+
+  var layerStatuses = [
+    {
+      layer: 1,
+      name: "Pollinations.ai",
+      status: "failed",
+      detail: simplifyAiError_(layer1Error || "No translation returned")
+    }
+  ];
+
+  var freeEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
+  if (freeApiKey) {
+    try {
+      var freeRes = callGeminiEndpoint_(freeEndpoint, freeApiKey, systemPrompt, cleanText, dir);
+      layerStatuses.push({
+        layer: 2,
+        name: "Gemini Free Tier",
+        status: "success",
+        detail: "Success • Cost: $0.00 (" + freeRes.inputTokens + " in / " + freeRes.outputTokens + " out tokens)"
+      });
+      return {
+        ok: true,
+        translatedText: freeRes.translatedText,
+        targetLang: freeRes.targetLang,
+        layer: 2,
+        provider: "Gemini Free Tier",
+        model: "Gemini Free Tier (gemini-3.5-flash-lite)",
+        tier: "gemini-free",
+        usedApiKey: true,
+        inputTokens: freeRes.inputTokens,
+        outputTokens: freeRes.outputTokens,
+        estimatedCostUsd: 0,
+        layerStatuses: layerStatuses
+      };
+    } catch (errFree) {
+      var freeErrMsg = String(errFree && errFree.message ? errFree.message : "");
+      var isBillingKeyErr = /prepayment credits|prepay/i.test(freeErrMsg) || /\bHTTP\s+402\b/i.test(freeErrMsg);
+      layerStatuses.push({
+        layer: 2,
+        name: "Gemini Free Tier",
+        status: "failed",
+        detail: isBillingKeyErr
+          ? "The Gemini API key configured for Free Tier has billing enabled (Prepay) instead of using a Free Tier project, and its prepayment credits are depleted. Use an API key from a project without billing enabled."
+          : simplifyAiError_(freeErrMsg)
+      });
+    }
+  } else {
+    layerStatuses.push({
+      layer: 2,
+      name: "Gemini Free Tier",
+      status: "failed",
+      detail: "GEMINI_FREE_API_KEY not configured"
+    });
+  }
+
+  var useVertex = Boolean(vertexApiKey);
+  var layer3Key = useVertex ? vertexApiKey : paidApiKey;
+  var layer3Name = useVertex ? "Gemini Paid Tier (Vertex AI)" : "Gemini Paid Tier (AI Studio)";
+  var layer3Endpoint = useVertex
+    ? "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-3.5-flash-lite:generateContent"
+    : freeEndpoint;
+
+  if (!layer3Key) {
+    layerStatuses.push({
+      layer: 3,
+      name: "Gemini Paid Tier",
+      status: "failed",
+      detail: "Neither VERTEX_API_KEY nor GEMINI_PAID_API_KEY is configured"
+    });
+    return {
+      ok: false,
+      layerStatuses: layerStatuses
+    };
+  }
+
+  try {
+    var paidRes = callGeminiEndpoint_(layer3Endpoint, layer3Key, systemPrompt, cleanText, dir);
+    var paidCostUsd = (paidRes.inputTokens * 0.30 + paidRes.outputTokens * 2.50) / 1000000;
+    var costDisplay = paidCostUsd < 0.0001 ? "<$0.0001" : "~$" + paidCostUsd.toFixed(5);
+    layerStatuses.push({
+      layer: 3,
+      name: layer3Name,
+      status: "success",
+      detail: "Success • Est. cost: " + costDisplay + (useVertex ? " (GCP Credits)" : "") + " (" + paidRes.inputTokens + " in / " + paidRes.outputTokens + " out tokens)"
+    });
+    return {
+      ok: true,
+      translatedText: paidRes.translatedText,
+      targetLang: paidRes.targetLang,
+      layer: 3,
+      provider: layer3Name,
+      model: layer3Name + " (gemini-3.5-flash-lite)",
+      tier: useVertex ? "vertex-paid" : "gemini-paid",
+      usedApiKey: true,
+      inputTokens: paidRes.inputTokens,
+      outputTokens: paidRes.outputTokens,
+      estimatedCostUsd: paidCostUsd,
+      layerStatuses: layerStatuses
+    };
+  } catch (errPaid) {
+    layerStatuses.push({
+      layer: 3,
+      name: layer3Name,
+      status: "failed",
+      detail: simplifyAiError_(errPaid.message)
+    });
+    return {
+      ok: false,
+      layerStatuses: layerStatuses
+    };
+  }
+}
+
+function simplifyAiError_(rawMsg) {
+  var text = String(rawMsg || "Unknown error").trim();
+  var codeMatch = text.match(/HTTP\s+(\d{3})/i);
+  var httpCode = codeMatch ? codeMatch[1] : "";
+  var jsonStart = text.indexOf("{");
+  if (jsonStart !== -1) {
+    try {
+      var parsed = JSON.parse(text.slice(jsonStart));
+      if (parsed && parsed.error && parsed.error.message) {
+        var cleanMessage = String(parsed.error.message).split(". Please go to")[0].trim();
+        return (httpCode ? "HTTP " + httpCode + ": " : "") + cleanMessage;
+      }
+    } catch (e) {
+    }
+  }
+  if (text.length > 130) {
+    return text.slice(0, 127) + "...";
+  }
+  return text;
+}
+
+function callGeminiEndpoint_(baseEndpoint, apiKey, systemPrompt, cleanText, dir) {
+  var geminiUrl = baseEndpoint + "?key=" + encodeURIComponent(apiKey);
+  var geminiPayload = {
+    system_instruction: {
+      parts: [{ text: systemPrompt }]
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: cleanText }]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.2
+    }
+  };
+
+  var geminiResp = UrlFetchApp.fetch(geminiUrl, {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(geminiPayload),
+    muteHttpExceptions: true
+  });
+
+  var geminiStatus = geminiResp.getResponseCode();
+  var geminiBody = geminiResp.getContentText();
+  if (geminiStatus < 200 || geminiStatus >= 300) {
+    throw new Error("HTTP " + geminiStatus + ": " + geminiBody);
+  }
+
+  var geminiJson = JSON.parse(geminiBody);
+  var geminiOut = geminiJson && geminiJson.candidates && geminiJson.candidates[0] && geminiJson.candidates[0].content && geminiJson.candidates[0].content.parts && geminiJson.candidates[0].content.parts[0] ? geminiJson.candidates[0].content.parts[0].text : "";
+
+  if (!geminiOut) {
+    throw new Error("Model returned an empty response.");
+  }
+
+  var parsed = parseAITranslationResponse(geminiOut, dir);
+  var usage = geminiJson && geminiJson.usageMetadata ? geminiJson.usageMetadata : {};
+  var inputTokens = Number(usage.promptTokenCount) || Math.ceil((systemPrompt.length + cleanText.length) / 4);
+  var outputTokens = (Number(usage.candidatesTokenCount) || Math.ceil(geminiOut.length / 4)) + (Number(usage.thoughtsTokenCount) || 0);
+
+  return {
+    translatedText: parsed.text,
+    targetLang: parsed.targetLang,
+    inputTokens: inputTokens,
+    outputTokens: outputTokens
+  };
+}
+
+function getOrCreateSavedScriptsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Saved Scripts");
+  if (!sheet) {
+    sheet = ss.insertSheet("Saved Scripts");
+    sheet.appendRow(["ID", "Created At", "Title", "Direction", "Source Text", "Translated Text", "Target Lang", "Model"]);
+    sheet.getRange(1, 1, 1, 8).setFontWeight("bold");
+  }
+  return sheet;
+}
+
+function getSavedScripts() {
+  var sheet = getOrCreateSavedScriptsSheet_();
+  var rows = sheet.getDataRange().getDisplayValues();
+  var results = [];
+  for (var i = rows.length - 1; i >= 1; i--) {
+    if (!rows[i][0]) continue;
+    results.push({
+      id: rows[i][0],
+      createdAt: rows[i][1],
+      title: rows[i][2],
+      direction: rows[i][3],
+      sourceText: rows[i][4],
+      translatedText: rows[i][5],
+      targetLang: rows[i][6],
+      model: rows[i][7]
+    });
+  }
+  return results;
+}
+
+function saveScriptToDb(payload) {
+  var sourceText = String(payload && payload.sourceText || "").trim();
+  var translatedText = String(payload && payload.translatedText || "").trim();
+  if (!sourceText || !translatedText) {
+    throw new Error("Both source text and translated text are required.");
+  }
+
+  var sheet = getOrCreateSavedScriptsSheet_();
+  var id = "scr_" + new Date().getTime() + "_" + Math.floor(Math.random() * 1000);
+  var createdAt = Utilities.formatDate(new Date(), "America/Los_Angeles", "MM/dd/yyyy hh:mm a");
+  var rawTitle = String(payload.title || "").trim();
+  var title = rawTitle || (sourceText.length > 45 ? sourceText.substring(0, 45) + "..." : sourceText);
+  var direction = String(payload.direction || "auto");
+  var targetLang = String(payload.targetLang || "es");
+  var model = String(payload.model || "AI");
+
+  sheet.appendRow([id, createdAt, title, direction, sourceText, translatedText, targetLang, model]);
+
+  return {
+    id: id,
+    createdAt: createdAt,
+    title: title,
+    direction: direction,
+    sourceText: sourceText,
+    translatedText: translatedText,
+    targetLang: targetLang,
+    model: model
+  };
+}
+
+function updateSavedScriptInDb(payload) {
+  var id = String(payload && payload.id || "").trim();
+  if (!id) {
+    throw new Error("Missing script ID.");
+  }
+  var sheet = getOrCreateSavedScriptsSheet_();
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === id) {
+      var rowNum = i + 1;
+      sheet.getRange(rowNum, 3).setValue(String(payload.title || "").trim());
+      sheet.getRange(rowNum, 5).setValue(String(payload.sourceText || "").trim());
+      sheet.getRange(rowNum, 6).setValue(String(payload.translatedText || "").trim());
+      sheet.getRange(rowNum, 7).setValue(String(payload.targetLang || "es"));
+      return "Success";
+    }
+  }
+  throw new Error("Saved script not found in database.");
+}
+
+function deleteSavedScriptFromDb(scriptId) {
+  var id = String(scriptId || "").trim();
+  if (!id) {
+    throw new Error("Missing script ID.");
+  }
+  var sheet = getOrCreateSavedScriptsSheet_();
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === id) {
+      sheet.deleteRow(i + 1);
+      return "Success";
+    }
+  }
+  throw new Error("Saved script not found in database.");
+}
